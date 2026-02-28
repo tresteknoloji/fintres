@@ -46,15 +46,15 @@
 
 /* Badge variants */
 .badge-success {
-    @apply bg-green-500/20 text-green-400 border-green-500/30;
+    @apply bg-green-500/20 text-green-500 border-green-500/30;
 }
 
 .badge-warning {
-    @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+    @apply bg-yellow-500/20 text-yellow-500 border-yellow-500/30;
 }
 
 .badge-danger {
-    @apply bg-red-500/20 text-red-400 border-red-500/30;
+    @apply bg-red-500/20 text-red-500 border-red-500/30;
 }
 
 /* Chart container */
@@ -64,7 +64,7 @@
 
 /* Login page */
 .login-bg {
-    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+    @apply bg-background;
 }
 
 /* Company switcher */
