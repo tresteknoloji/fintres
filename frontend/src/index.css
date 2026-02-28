@@ -106,21 +106,21 @@ code, .mono {
 }
 
 ::-webkit-scrollbar-track {
-    background: hsl(230, 25%, 10%);
+    background: hsl(var(--muted));
 }
 
 ::-webkit-scrollbar-thumb {
-    background: hsl(217, 19%, 27%);
+    background: hsl(var(--border));
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(217, 19%, 35%);
+    background: hsl(var(--muted-foreground));
 }
 
 /* Glass morphism utilities */
 .glass {
-    background: rgba(30, 41, 59, 0.7);
+    background: hsl(var(--card) / 0.7);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 }
