@@ -428,15 +428,24 @@ async def create_personnel(personnel: PersonnelCreate, current_user: dict = Depe
     personnel_doc = {
         "id": str(uuid.uuid4()),
         **personnel.model_dump(),
+        "status": personnel.status or "active",
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.personnel.insert_one(personnel_doc)
     return PersonnelResponse(**{k: v for k, v in personnel_doc.items() if k != "_id"})
 
 @api_router.get("/personnel", response_model=List[PersonnelResponse])
-async def get_personnel(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    query = {"company_id": company_id} if company_id else {}
+async def get_personnel(company_id: Optional[str] = None, status: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {}
+    if company_id:
+        query["company_id"] = company_id
+    if status:
+        query["status"] = status
     personnel = await db.personnel.find(query, {"_id": 0}).to_list(1000)
+    # Add default status for old records
+    for p in personnel:
+        if "status" not in p:
+            p["status"] = "active"
     return [PersonnelResponse(**p) for p in personnel]
 
 @api_router.put("/personnel/{personnel_id}", response_model=PersonnelResponse)
@@ -445,7 +454,19 @@ async def update_personnel(personnel_id: str, personnel: PersonnelCreate, curren
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Personel bulunamadı")
     updated = await db.personnel.find_one({"id": personnel_id}, {"_id": 0})
+    if "status" not in updated:
+        updated["status"] = "active"
     return PersonnelResponse(**updated)
+
+@api_router.put("/personnel/{personnel_id}/terminate")
+async def terminate_personnel(personnel_id: str, end_date: str, current_user: dict = Depends(get_current_user)):
+    result = await db.personnel.update_one(
+        {"id": personnel_id}, 
+        {"$set": {"status": "terminated", "end_date": end_date}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+    return {"message": "Personel işten ayrıldı olarak işaretlendi"}
 
 @api_router.delete("/personnel/{personnel_id}")
 async def delete_personnel(personnel_id: str, current_user: dict = Depends(get_current_user)):
@@ -453,6 +474,53 @@ async def delete_personnel(personnel_id: str, current_user: dict = Depends(get_c
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Personel bulunamadı")
     return {"message": "Personel silindi"}
+
+# ============ ADVANCE ROUTES ============
+
+@api_router.post("/advances", response_model=AdvanceResponse)
+async def create_advance(advance: AdvanceCreate, current_user: dict = Depends(get_current_user)):
+    advance_doc = {
+        "id": str(uuid.uuid4()),
+        **advance.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.advances.insert_one(advance_doc)
+    return AdvanceResponse(**{k: v for k, v in advance_doc.items() if k != "_id"})
+
+@api_router.get("/advances", response_model=List[AdvanceResponse])
+async def get_advances(company_id: Optional[str] = None, personnel_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {}
+    if company_id:
+        query["company_id"] = company_id
+    if personnel_id:
+        query["personnel_id"] = personnel_id
+    advances = await db.advances.find(query, {"_id": 0}).to_list(1000)
+    return [AdvanceResponse(**a) for a in advances]
+
+@api_router.put("/advances/{advance_id}", response_model=AdvanceResponse)
+async def update_advance(advance_id: str, advance: AdvanceCreate, current_user: dict = Depends(get_current_user)):
+    result = await db.advances.update_one({"id": advance_id}, {"$set": advance.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Avans bulunamadı")
+    updated = await db.advances.find_one({"id": advance_id}, {"_id": 0})
+    return AdvanceResponse(**updated)
+
+@api_router.put("/advances/{advance_id}/payback")
+async def mark_advance_paid_back(advance_id: str, paid_back_date: str, current_user: dict = Depends(get_current_user)):
+    result = await db.advances.update_one(
+        {"id": advance_id}, 
+        {"$set": {"is_paid_back": True, "paid_back_date": paid_back_date}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Avans bulunamadı")
+    return {"message": "Avans geri ödendi olarak işaretlendi"}
+
+@api_router.delete("/advances/{advance_id}")
+async def delete_advance(advance_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.advances.delete_one({"id": advance_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Avans bulunamadı")
+    return {"message": "Avans silindi"}
 
 # ============ SALARY PAYMENT ROUTES ============
 
