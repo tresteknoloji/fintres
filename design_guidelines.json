@@ -1,0 +1,144 @@
+{
+  "project_name": "FinTrack Pro - Multi-Company Financial Suite",
+  "project_description": "A high-precision, dark-mode financial dashboard for tracking multi-company finances, income, expenses, and personnel.",
+  "design_philosophy": {
+    "archetype": "The Private Vault",
+    "core_values": ["Precision", "Wealth", "Clarity", "Control"],
+    "visual_style": "Jewel & Luxury Dark Mode. Deep obsidian backgrounds with electric indigo and emerald accents. Glassmorphism for depth.",
+    "theme_strategy": "Dark Mode Preferred. The interface should default to dark mode for a professional 'Bloomberg Terminal' aesthetic."
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Outfit, sans-serif",
+      "body": "Plus Jakarta Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+      "h2": "text-3xl font-semibold tracking-tight",
+      "h3": "text-2xl font-semibold tracking-tight",
+      "h4": "text-xl font-medium",
+      "body": "text-base leading-relaxed text-muted-foreground",
+      "small": "text-sm font-medium leading-none",
+      "tiny": "text-xs font-medium uppercase tracking-wider text-muted-foreground"
+    },
+    "weights": {
+      "light": 300,
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+  "colors": {
+    "palette": {
+      "background": "hsl(230, 25%, 6%)", 
+      "foreground": "hsl(210, 40%, 98%)",
+      "card": "hsl(230, 25%, 10%)",
+      "card_foreground": "hsl(210, 40%, 98%)",
+      "popover": "hsl(230, 25%, 10%)",
+      "popover_foreground": "hsl(210, 40%, 98%)",
+      "primary": "hsl(243, 75%, 59%)",
+      "primary_foreground": "hsl(210, 40%, 98%)",
+      "secondary": "hsl(217, 19%, 27%)",
+      "secondary_foreground": "hsl(210, 40%, 98%)",
+      "muted": "hsl(217, 19%, 20%)",
+      "muted_foreground": "hsl(215, 20%, 65%)",
+      "accent": "hsl(217, 19%, 27%)",
+      "accent_foreground": "hsl(210, 40%, 98%)",
+      "destructive": "hsl(0, 84%, 60%)",
+      "destructive_foreground": "hsl(210, 40%, 98%)",
+      "border": "hsl(217, 19%, 20%)",
+      "input": "hsl(217, 19%, 20%)",
+      "ring": "hsl(243, 75%, 59%)",
+      "success": "hsl(142, 71%, 45%)",
+      "warning": "hsl(45, 93%, 47%)"
+    },
+    "gradients": {
+      "primary_glow": "radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)",
+      "card_shimmer": "linear-gradient(110deg, transparent 40%, rgba(255,255,255,0.03) 45%, transparent 50%)"
+    }
+  },
+  "spacing": {
+    "container_padding": "p-6 md:p-8 lg:p-10",
+    "section_gap": "gap-8",
+    "element_gap": "gap-4",
+    "border_radius": "0.75rem"
+  },
+  "components": {
+    "Card": {
+      "style": "bg-card border border-border shadow-sm rounded-xl overflow-hidden relative",
+      "hover": "hover:border-primary/50 transition-colors duration-300",
+      "header": "p-6 pb-2",
+      "content": "p-6 pt-2"
+    },
+    "Button": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)] transition-all duration-300 rounded-lg font-medium px-6 py-2",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-lg font-medium px-6 py-2",
+      "outline": "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground rounded-lg font-medium px-6 py-2",
+      "ghost": "hover:bg-accent hover:text-accent-foreground rounded-lg px-4 py-2"
+    },
+    "Input": {
+      "base": "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
+    },
+    "Table": {
+      "wrapper": "relative w-full overflow-auto rounded-xl border border-border bg-card/50 backdrop-blur-sm",
+      "header": "bg-muted/50 text-xs uppercase tracking-wider font-semibold text-muted-foreground",
+      "row": "border-b border-border/50 hover:bg-muted/30 transition-colors",
+      "cell": "p-4 align-middle text-sm font-medium"
+    },
+    "Sidebar": {
+      "wrapper": "fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card/95 backdrop-blur-xl flex flex-col",
+      "link": "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground hover:bg-accent",
+      "link_active": "bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+    }
+  },
+  "layout_strategies": {
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
+    "bento_grid": {
+      "wrapper": "grid grid-cols-1 md:grid-cols-4 gap-6",
+      "hero_card": "md:col-span-2 md:row-span-2",
+      "tall_card": "md:col-span-1 md:row-span-2",
+      "wide_card": "md:col-span-2 md:row-span-1",
+      "small_card": "md:col-span-1 md:row-span-1"
+    }
+  },
+  "assets": {
+    "logo_placeholder": "https://images.unsplash.com/photo-1719839286442-a22dcf33c825?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "login_background": "https://images.pexels.com/photos/28428591/pexels-photo-28428591.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "avatars": [
+      "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.pexels.com/photos/6572210/pexels-photo-6572210.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    ],
+    "company_logos": [
+      "https://images.unsplash.com/photo-1719839286442-a22dcf33c825?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "https://images.unsplash.com/photo-1584599062870-f93564dd5981?crop=entropy&cs=srgb&fm=jpg&q=85"
+    ]
+  },
+  "libraries": {
+    "charts": "recharts",
+    "icons": "lucide-react",
+    "animation": "framer-motion",
+    "ui_primitives": "shadcn/ui",
+    "toast": "sonner"
+  },
+  "instructions_to_main_agent": [
+    "INSTALLATION: Run 'npm install lucide-react recharts framer-motion clsx tailwind-merge cva' if not installed.",
+    "FONTS: Add '@import url(\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap\");' to index.css.",
+    "THEME SETUP: Update 'tailwind.config.js' with the colors provided in 'colors.palette'. Ensure 'darkMode' is set to 'class'.",
+    "GLOBAL CSS: Update 'index.css' root variables to match the HSL values in 'colors.palette'. CRITICAL: Override both ':root' (for light mode backup) and '.dark' classes.",
+    "LAYOUT: Create a 'Layout.js' component that includes the Sidebar and a top Header. Use 'Outlet' from react-router-dom for page content.",
+    "CHARTS: Use 'ResponsiveContainer' from Recharts. Style Tooltips with 'contentStyle={{ backgroundColor: \"#1e293b\", borderColor: \"#334155\" }}'.",
+    "TESTING: Add 'data-testid' to all interactive elements (buttons, inputs, links).",
+    "DATA: Mock data for the dashboard should be realistic Turkish Lira figures (e.g., ₺145.000,00).",
+    "LANGUAGE: The interface MUST be in Turkish (Gelirler, Giderler, Personel, Özet, Ayarlar)."
+  ],
+  "universal_guidelines": [
+    "Do not use generic centered layouts. Use grid-based, high-density layouts for data.",
+    "Use glassmorphism (backdrop-blur) for the sidebar and header.",
+    "Never use pure black (#000000). Use the Deep Obsidian (#0F111A) provided.",
+    "Ensure all text has sufficient contrast. Use 'text-muted-foreground' for labels, 'text-foreground' for values.",
+    "Add 'hover:scale-[1.02]' transitions to cards for a tactile feel.",
+    "Use 'sonner' for notifications (Success: Green, Error: Red)."
+  ]
+}
