@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCompany } from "../context/CompanyContext";
+import { useTheme } from "../context/ThemeContext";
 import {
   LayoutDashboard,
   Building2,
@@ -15,7 +16,9 @@ import {
   Menu,
   X,
   ChevronDown,
-  Check
+  Check,
+  Sun,
+  Moon
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -41,6 +44,7 @@ const navigation = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const { companies, selectedCompany, selectCompany } = useCompany();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -187,6 +191,21 @@ export default function Layout() {
               </div>
             )}
           </div>
+
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="mr-2"
+            data-testid="theme-toggle"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </Button>
         </header>
 
         {/* Page content */}
