@@ -31,7 +31,7 @@ import {
   TableRow
 } from "../components/ui/table";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, Wallet, UserX, Banknote, Check, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Wallet, UserX, Banknote, Check, Filter, Eye } from "lucide-react";
 import { formatCurrency, formatDate, CURRENCIES } from "../lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -52,6 +52,7 @@ export default function PersonnelPage() {
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [editingPersonnel, setEditingPersonnel] = useState(null);
   const [selectedPersonnel, setSelectedPersonnel] = useState(null);
   const [saving, setSaving] = useState(false);
