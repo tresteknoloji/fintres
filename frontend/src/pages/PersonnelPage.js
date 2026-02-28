@@ -689,6 +689,135 @@ export default function PersonnelPage() {
             </DialogContent>
           </Dialog>
 
+          {/* Personnel Detail Dialog */}
+          <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-lg font-bold text-primary">
+                      {selectedPersonnel?.name?.charAt(0)?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p>{selectedPersonnel?.name}</p>
+                    <p className="text-sm font-normal text-muted-foreground">{selectedPersonnel?.position}</p>
+                  </div>
+                </DialogTitle>
+              </DialogHeader>
+              
+              {selectedPersonnel && (
+                <div className="space-y-6">
+                  {/* Info Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card className="p-4">
+                      <p className="text-xs text-muted-foreground">Maaş</p>
+                      <p className="text-lg font-bold currency">{formatCurrency(selectedPersonnel.salary, selectedPersonnel.currency)}</p>
+                    </Card>
+                    <Card className="p-4">
+                      <p className="text-xs text-muted-foreground">Durum</p>
+                      <Badge variant="outline" className={getStatusInfo(selectedPersonnel.status || "active").className + " mt-1"}>
+                        {getStatusInfo(selectedPersonnel.status || "active").label}
+                      </Badge>
+                    </Card>
+                    <Card className="p-4">
+                      <p className="text-xs text-muted-foreground">İşe Başlama</p>
+                      <p className="text-sm font-medium">{formatDate(selectedPersonnel.start_date)}</p>
+                    </Card>
+                    <Card className="p-4">
+                      <p className="text-xs text-muted-foreground">Bekleyen Avans</p>
+                      <p className="text-lg font-bold currency text-orange-500">
+                        {formatCurrency(
+                          advances.filter(a => a.personnel_id === selectedPersonnel.id && !a.is_paid_back).reduce((sum, a) => sum + a.amount, 0),
+                          selectedPersonnel.currency
+                        )}
+                      </p>
+                    </Card>
+                  </div>
+
+                  {/* Contact Info */}
+                  {(selectedPersonnel.email || selectedPersonnel.phone) && (
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                      <p className="text-sm font-medium mb-2">İletişim Bilgileri</p>
+                      {selectedPersonnel.email && <p className="text-sm text-muted-foreground">{selectedPersonnel.email}</p>}
+                      {selectedPersonnel.phone && <p className="text-sm text-muted-foreground">{selectedPersonnel.phone}</p>}
+                    </div>
+                  )}
+
+                  {/* Advances List */}
+                  <div>
+                    <p className="text-sm font-medium mb-3">Avans Geçmişi</p>
+                    {advances.filter(a => a.personnel_id === selectedPersonnel.id).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Henüz avans kaydı yok</p>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Tarih</TableHead>
+                              <TableHead>Açıklama</TableHead>
+                              <TableHead className="text-right">Tutar</TableHead>
+                              <TableHead>Durum</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {advances.filter(a => a.personnel_id === selectedPersonnel.id).map((advance) => (
+                              <TableRow key={advance.id}>
+                                <TableCell>{formatDate(advance.date)}</TableCell>
+                                <TableCell>{advance.reason || "-"}</TableCell>
+                                <TableCell className="text-right font-medium currency">
+                                  {formatCurrency(advance.amount, advance.currency)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={advance.is_paid_back ? "badge-success" : "badge-warning"}>
+                                    {advance.is_paid_back ? "Geri Ödendi" : "Bekliyor"}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Salary Payments */}
+                  <div>
+                    <p className="text-sm font-medium mb-3">Maaş Ödemeleri</p>
+                    {salaries.filter(s => s.personnel_id === selectedPersonnel.id).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Henüz maaş ödemesi yok</p>
+                    ) : (
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Dönem</TableHead>
+                              <TableHead>Ödeme Tarihi</TableHead>
+                              <TableHead className="text-right">Tutar</TableHead>
+                              <TableHead>Notlar</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {salaries.filter(s => s.personnel_id === selectedPersonnel.id).map((salary) => (
+                              <TableRow key={salary.id}>
+                                <TableCell className="font-medium">{salary.period}</TableCell>
+                                <TableCell>{formatDate(salary.payment_date)}</TableCell>
+                                <TableCell className="text-right font-medium currency">
+                                  {formatCurrency(salary.amount, salary.currency)}
+                                </TableCell>
+                                <TableCell>{salary.notes || "-"}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
           {/* Table */}
           {filteredPersonnel.length === 0 ? (
             <Card className="text-center py-12">
