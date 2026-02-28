@@ -1,34 +1,73 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* App specific styles */
+.sidebar-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all duration-200;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.sidebar-link:hover {
+    @apply text-foreground bg-accent;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.sidebar-link.active {
+    @apply bg-primary/10 text-primary;
 }
 
-.App-link {
-    color: #61dafb;
+.stat-card {
+    @apply bg-card border border-border rounded-xl p-6 transition-all duration-300;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.stat-card:hover {
+    @apply border-primary/50 scale-[1.02];
+}
+
+.data-table {
+    @apply w-full overflow-auto rounded-xl border border-border bg-card/50 backdrop-blur-sm;
+}
+
+.data-table th {
+    @apply bg-muted/50 text-xs uppercase tracking-wider font-semibold text-muted-foreground p-4 text-left;
+}
+
+.data-table td {
+    @apply p-4 align-middle text-sm font-medium border-b border-border/50;
+}
+
+.data-table tr:hover {
+    @apply bg-muted/30;
+}
+
+/* Form styles */
+.form-group {
+    @apply space-y-2;
+}
+
+.form-label {
+    @apply text-sm font-medium text-muted-foreground;
+}
+
+/* Badge variants */
+.badge-success {
+    @apply bg-green-500/20 text-green-400 border-green-500/30;
+}
+
+.badge-warning {
+    @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30;
+}
+
+.badge-danger {
+    @apply bg-red-500/20 text-red-400 border-red-500/30;
+}
+
+/* Chart container */
+.chart-container {
+    @apply w-full h-[300px] md:h-[400px];
+}
+
+/* Login page */
+.login-bg {
+    background: linear-gradient(135deg, hsl(230, 25%, 6%) 0%, hsl(230, 25%, 12%) 100%);
+}
+
+/* Company switcher */
+.company-badge {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20;
 }
