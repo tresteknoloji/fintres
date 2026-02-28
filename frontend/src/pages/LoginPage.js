@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { toast } from "sonner";
-import { BarChart3, Lock, Mail, User } from "lucide-react";
+import { BarChart3, Lock, Mail, User, Sun, Moon } from "lucide-react";
 
 export default function LoginPage() {
   const { login, register } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -58,7 +60,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen login-bg flex items-center justify-center p-4">
+    <div className="min-h-screen login-bg flex items-center justify-center p-4 relative">
+      {/* Theme Toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleTheme}
+        className="absolute top-4 right-4"
+        data-testid="login-theme-toggle"
+      >
+        {theme === "dark" ? (
+          <Sun className="w-5 h-5" />
+        ) : (
+          <Moon className="w-5 h-5" />
+        )}
+      </Button>
+
       <div className="w-full max-w-md animate-fadeIn">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
