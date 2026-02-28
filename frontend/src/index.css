@@ -78,8 +78,16 @@ body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
     background: hsl(230, 25%, 6%);
     color: hsl(210, 40%, 98%);
+}
+
+.light body {
+    background: hsl(0, 0%, 100%);
+    color: hsl(222, 47%, 11%);
 }
 
 h1, h2, h3, h4, h5, h6 {
