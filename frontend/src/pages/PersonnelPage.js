@@ -884,6 +884,9 @@ export default function PersonnelPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openDetailDialog(person)} title="Detay Görüntüle" data-testid={`view-personnel-${person.id}`}>
+                              <Eye className="w-4 h-4 text-primary" />
+                            </Button>
                             {(person.status || "active") === "active" && (
                               <>
                                 <Button variant="ghost" size="sm" onClick={() => openSalaryDialog(person)} title="Maaş Öde" data-testid={`pay-salary-${person.id}`}>
