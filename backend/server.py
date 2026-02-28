@@ -121,6 +121,8 @@ class PersonnelCreate(BaseModel):
     salary: float
     currency: str = "TRY"
     start_date: str
+    end_date: Optional[str] = None
+    status: str = "active"  # active, inactive, terminated
 
 class PersonnelResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -133,6 +135,31 @@ class PersonnelResponse(BaseModel):
     salary: float
     currency: str
     start_date: str
+    end_date: Optional[str] = None
+    status: str = "active"
+    created_at: str
+
+class AdvanceCreate(BaseModel):
+    personnel_id: str
+    company_id: str
+    amount: float
+    currency: str = "TRY"
+    date: str
+    reason: Optional[str] = None
+    is_paid_back: bool = False
+    paid_back_date: Optional[str] = None
+
+class AdvanceResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    personnel_id: str
+    company_id: str
+    amount: float
+    currency: str
+    date: str
+    reason: Optional[str] = None
+    is_paid_back: bool
+    paid_back_date: Optional[str] = None
     created_at: str
 
 class SalaryPaymentCreate(BaseModel):
