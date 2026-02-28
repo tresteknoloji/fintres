@@ -197,6 +197,11 @@ export default function PersonnelPage() {
     setTerminateDialogOpen(true);
   };
 
+  const openDetailDialog = (person) => {
+    setSelectedPersonnel(person);
+    setDetailDialogOpen(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.company_id || !form.name || !form.position || !form.salary) {
