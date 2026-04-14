@@ -401,7 +401,7 @@ export default function BudgetPage() {
                         </Pie>
                         <Tooltip
                           contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                          formatter={(value) => [formatCurrency(value), ""]}
+                          formatter={(value, name) => [formatCurrency(value), getCategoryLabel(name, "expense")]}
                         />
                         <Legend formatter={(value) => getCategoryLabel(value, "expense")} />
                       </PieChart>
