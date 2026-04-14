@@ -14,6 +14,7 @@ import RemindersPage from "./pages/RemindersPage";
 import ReportsPage from "./pages/ReportsPage";
 import BudgetPage from "./pages/BudgetPage";
 import SettingsPage from "./pages/SettingsPage";
+import SetPasswordPage from "./pages/SetPasswordPage";
 import "./App.css";
 
 function ProtectedRoute({ children }) {
@@ -48,6 +49,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/set-password" element={<SetPasswordPage />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="companies" element={<CompaniesPage />} />

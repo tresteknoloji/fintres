@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { useCompany } from "../context/CompanyContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -32,13 +33,15 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { toast } from "sonner";
-import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User, Send, CheckCircle, Clock, Bell, Calendar } from "lucide-react";
+import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User, Send, CheckCircle, Clock, Bell, Calendar, Phone, Building2 } from "lucide-react";
+import { Checkbox } from "../components/ui/checkbox";
 import { formatDate } from "../lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { companies } = useCompany();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -49,8 +52,9 @@ export default function SettingsPage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    password: "",
-    role: "user"
+    phone: "",
+    role: "user",
+    company_ids: []
   });
 
   const [smtpForm, setSmtpForm] = useState({
@@ -146,38 +150,34 @@ export default function SettingsPage() {
     setSavingReminder(true);
     try {
       await axios.post(`${API}/settings/reminders`, reminderForm);
-      toast.success("Hatirlatma ayarlari kaydedildi");
+      toast.success("Hatırlatma ayarları kaydedildi");
       fetchSchedulerStatus();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Kaydetme basarisiz");
+      toast.error(error.response?.data?.detail || "Kaydetme başarısız");
     } finally {
       setSavingReminder(false);
     }
   };
 
   const resetForm = () => {
-    setForm({ name: "", email: "", password: "", role: "user" });
+    setForm({ name: "", email: "", phone: "", role: "user", company_ids: [] });
   };
 
   const handleAddUser = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password) {
-      toast.error("Lutfen tum alanlari doldurun");
-      return;
-    }
-    if (form.password.length < 6) {
-      toast.error("Sifre en az 6 karakter olmali");
+    if (!form.name || !form.email) {
+      toast.error("Lütfen Ad Soyad ve E-posta alanlarını doldurun");
       return;
     }
     setSaving(true);
     try {
-      await axios.post(`${API}/auth/register`, form);
-      toast.success("Kullanici eklendi");
+      await axios.post(`${API}/auth/invite`, form);
+      toast.success("Davet gönderildi! Kullanıcıya e-posta ile bilgilendirilecek.");
       setDialogOpen(false);
       resetForm();
       fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Kullanici eklenemedi");
+      toast.error(error.response?.data?.detail || "Davet gönderilemedi");
     } finally {
       setSaving(false);
     }
@@ -188,24 +188,24 @@ export default function SettingsPage() {
       toast.error("Kendinizi silemezsiniz");
       return;
     }
-    if (!window.confirm("Bu kullaniciyi silmek istediginize emin misiniz?")) return;
+    if (!window.confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
     try {
       await axios.delete(`${API}/users/${userId}`);
-      toast.success("Kullanici silindi");
+      toast.success("Kullanıcı silindi");
       fetchUsers();
     } catch (error) {
-      toast.error("Silme islemi basarisiz");
+      toast.error("Silme işlemi başarısız");
     }
   };
 
   const handleSaveSmtp = async (e) => {
     e.preventDefault();
     if (!smtpForm.smtp_host || !smtpForm.smtp_user || !smtpForm.sender_name || !smtpForm.sender_email || !smtpForm.notify_email) {
-      toast.error("Lutfen zorunlu alanlari doldurun");
+      toast.error("Lütfen zorunlu alanları doldurun");
       return;
     }
     if (!smtpLoaded && !smtpForm.smtp_password) {
-      toast.error("Sifre giriniz");
+      toast.error("Şifre giriniz");
       return;
     }
     setSaving(true);
@@ -214,18 +214,16 @@ export default function SettingsPage() {
         ...smtpForm,
         smtp_port: parseInt(smtpForm.smtp_port)
       };
-      // Şifre boşsa ve daha önce kaydedilmişse, şifreyi göndermeden güncelle
       if (!data.smtp_password && smtpLoaded) {
-        // Şifreyi yeniden girmesi gerekiyor
-        toast.error("SMTP sifresini tekrar giriniz");
+        toast.error("SMTP şifresini tekrar giriniz");
         setSaving(false);
         return;
       }
       await axios.post(`${API}/smtp`, data);
-      toast.success("SMTP ayarlari kaydedildi");
+      toast.success("SMTP ayarları kaydedildi");
       setSmtpLoaded(true);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Kaydetme basarisiz");
+      toast.error(error.response?.data?.detail || "Kaydetme başarısız");
     } finally {
       setSaving(false);
     }
@@ -237,7 +235,7 @@ export default function SettingsPage() {
       const response = await axios.post(`${API}/smtp/test`);
       toast.success(response.data.message);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Test e-postasi gonderilemedi");
+      toast.error(error.response?.data?.detail || "Test e-postası gönderilemedi");
     } finally {
       setTesting(false);
     }
@@ -249,7 +247,7 @@ export default function SettingsPage() {
       const response = await axios.post(`${API}/smtp/send-reminders`);
       toast.success(response.data.message);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Hatirlaticilar gonderilemedi");
+      toast.error(error.response?.data?.detail || "Hatırlatıcılar gönderilemedi");
     } finally {
       setSendingReminders(false);
     }
@@ -268,7 +266,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Ayarlar</h1>
-        <p className="text-muted-foreground mt-1">Hesap ve sistem ayarlari</p>
+        <p className="text-muted-foreground mt-1">Hesap ve sistem ayarları</p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
@@ -276,9 +274,9 @@ export default function SettingsPage() {
           <TabsTrigger value="profile" data-testid="tab-profile">Profil</TabsTrigger>
           {user?.role === "admin" && (
             <>
-              <TabsTrigger value="users" data-testid="tab-users">Kullanicilar</TabsTrigger>
-              <TabsTrigger value="smtp" data-testid="tab-smtp">E-posta Ayarlari</TabsTrigger>
-              <TabsTrigger value="reminders" data-testid="tab-reminders">Hatirlatma Ayarlari</TabsTrigger>
+              <TabsTrigger value="users" data-testid="tab-users">Kullanıcılar</TabsTrigger>
+              <TabsTrigger value="smtp" data-testid="tab-smtp">E-posta Ayarları</TabsTrigger>
+              <TabsTrigger value="reminders" data-testid="tab-reminders">Hatırlatma Ayarları</TabsTrigger>
             </>
           )}
         </TabsList>
@@ -288,7 +286,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Profil Bilgileri</CardTitle>
-              <CardDescription>Hesap bilgilerinizi goruntuleyin</CardDescription>
+              <CardDescription>Hesap bilgilerinizi görüntüleyin</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -302,7 +300,7 @@ export default function SettingsPage() {
                   <p className="text-muted-foreground">{user?.email}</p>
                   <Badge variant="outline" className="mt-1">
                     <Shield className="w-3 h-3 mr-1" />
-                    {user?.role === "admin" ? "Yonetici" : "Kullanici"}
+                    {user?.role === "admin" ? "Yönetici" : "Kullanıcı"}
                   </Badge>
                 </div>
               </div>
@@ -318,10 +316,10 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Rol</Label>
-                  <Input value={user?.role === "admin" ? "Yonetici" : "Kullanici"} disabled />
+                  <Input value={user?.role === "admin" ? "Yönetici" : "Kullanıcı"} disabled />
                 </div>
                 <div className="space-y-2">
-                  <Label>Kayit Tarihi</Label>
+                  <Label>Kayıt Tarihi</Label>
                   <Input value={formatDate(user?.created_at)} disabled />
                 </div>
               </div>
@@ -337,9 +335,9 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Kullanici Yonetimi
+                    Kullanıcı Yönetimi
                   </CardTitle>
-                  <CardDescription>Sistemdeki tum kullanicilari yonetin</CardDescription>
+                  <CardDescription>Sistemdeki tüm kullanıcıları yönetin</CardDescription>
                 </div>
                 <Dialog open={dialogOpen} onOpenChange={(open) => {
                   setDialogOpen(open);
@@ -348,12 +346,12 @@ export default function SettingsPage() {
                   <DialogTrigger asChild>
                     <Button data-testid="add-user-btn">
                       <Plus className="w-4 h-4 mr-2" />
-                      Kullanici Ekle
+                      Kullanıcı Davet Et
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Yeni Kullanici Ekle</DialogTitle>
+                      <DialogTitle>Kullanıcı Davet Et</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleAddUser} className="space-y-4">
                       <div className="space-y-2">
@@ -384,14 +382,17 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Sifre * (min. 6 karakter)</Label>
-                        <Input
-                          type="password"
-                          value={form.password}
-                          onChange={(e) => setForm({ ...form, password: e.target.value })}
-                          placeholder="********"
-                          data-testid="new-user-password"
-                        />
+                        <Label>Telefon</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            value={form.phone}
+                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                            placeholder="05XX XXX XX XX"
+                            className="pl-10"
+                            data-testid="new-user-phone"
+                          />
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label>Rol</Label>
@@ -400,15 +401,49 @@ export default function SettingsPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="user">Kullanici</SelectItem>
-                            <SelectItem value="admin">Yonetici</SelectItem>
+                            <SelectItem value="user">Kullanıcı</SelectItem>
+                            <SelectItem value="admin">Yönetici</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      {companies.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Erişebileceği Şirketler</Label>
+                          <div className="space-y-2 border rounded-md p-3 max-h-40 overflow-y-auto">
+                            {companies.map((c) => (
+                              <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  checked={form.company_ids.includes(c.id)}
+                                  onCheckedChange={(checked) => {
+                                    setForm(prev => ({
+                                      ...prev,
+                                      company_ids: checked
+                                        ? [...prev.company_ids, c.id]
+                                        : prev.company_ids.filter(id => id !== c.id)
+                                    }));
+                                  }}
+                                  data-testid={`company-check-${c.id}`}
+                                />
+                                <span className="text-sm flex items-center gap-1">
+                                  <Building2 className="w-3 h-3 text-muted-foreground" />
+                                  {c.name}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Boş bırakılırsa tüm şirketleri görebilir</p>
+                        </div>
+                      )}
+                      <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                        <p className="text-xs text-muted-foreground">
+                          Kullanıcıya davet e-postası gönderilecek. E-postadaki bağlantıya tıklayarak kendi şifresini oluşturacak.
+                        </p>
+                      </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Iptal</Button>
+                        <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>İptal</Button>
                         <Button type="submit" disabled={saving} data-testid="submit-new-user">
-                          {saving ? "Ekleniyor..." : "Kullanici Ekle"}
+                          <Mail className="w-4 h-4 mr-2" />
+                          {saving ? "Gönderiliyor..." : "Davet Gönder"}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -417,7 +452,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 {users.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Henuz kullanici yok</p>
+                  <p className="text-center text-muted-foreground py-8">Henüz kullanıcı yok</p>
                 ) : (
                   <div className="data-table">
                     <Table>
@@ -425,9 +460,10 @@ export default function SettingsPage() {
                         <TableRow>
                           <TableHead>Ad Soyad</TableHead>
                           <TableHead>E-posta</TableHead>
+                          <TableHead>Telefon</TableHead>
                           <TableHead>Rol</TableHead>
-                          <TableHead>Kayit Tarihi</TableHead>
-                          <TableHead className="w-[80px]">Islem</TableHead>
+                          <TableHead>Durum</TableHead>
+                          <TableHead className="w-[80px]">İşlem</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -435,12 +471,17 @@ export default function SettingsPage() {
                           <TableRow key={u.id} data-testid={`user-row-${u.id}`}>
                             <TableCell className="font-medium">{u.name}</TableCell>
                             <TableCell>{u.email}</TableCell>
+                            <TableCell>{u.phone || "-"}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className={u.role === "admin" ? "badge-success" : ""}>
-                                {u.role === "admin" ? "Yonetici" : "Kullanici"}
+                                {u.role === "admin" ? "Yönetici" : "Kullanıcı"}
                               </Badge>
                             </TableCell>
-                            <TableCell>{formatDate(u.created_at)}</TableCell>
+                            <TableCell>
+                              <Badge variant={u.status === "pending" ? "secondary" : "outline"}>
+                                {u.status === "pending" ? "Davet Bekliyor" : "Aktif"}
+                              </Badge>
+                            </TableCell>
                             <TableCell>
                               <Button
                                 variant="ghost"
@@ -474,7 +515,7 @@ export default function SettingsPage() {
                   E-posta Bildirimleri (SMTP)
                 </CardTitle>
                 <CardDescription>
-                  Odeme hatirlaticilari icin e-posta bildirim ayarlari
+                  Ödeme hatırlatıcıları için e-posta bildirim ayarları
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -501,7 +542,7 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="smtp_user">SMTP Kullanici Adi *</Label>
+                      <Label htmlFor="smtp_user">SMTP Kullanıcı Adı *</Label>
                       <Input
                         id="smtp_user"
                         value={smtpForm.smtp_user}
@@ -511,23 +552,23 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="smtp_pass">SMTP Sifre *</Label>
+                      <Label htmlFor="smtp_pass">SMTP Şifre *</Label>
                       <Input
                         id="smtp_pass"
                         type="password"
                         value={smtpForm.smtp_password}
                         onChange={(e) => setSmtpForm({ ...smtpForm, smtp_password: e.target.value })}
-                        placeholder={smtpLoaded ? "********" : "Sifre giriniz"}
+                        placeholder={smtpLoaded ? "********" : "Şifre giriniz"}
                         data-testid="smtp-pass"
                       />
                     </div>
                   </div>
 
                   <div className="border-t pt-6">
-                    <h4 className="font-medium mb-4">Gonderici Bilgileri</h4>
+                    <h4 className="font-medium mb-4">Gönderici Bilgileri</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="sender_name">Gonderici Adi * (E-postalarda gorunecek)</Label>
+                        <Label htmlFor="sender_name">Gönderici Adı * (E-postalarda görünecek)</Label>
                         <Input
                           id="sender_name"
                           value={smtpForm.sender_name}
@@ -537,7 +578,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="sender_email">Gonderici E-posta *</Label>
+                        <Label htmlFor="sender_email">Gönderici E-posta *</Label>
                         <Input
                           id="sender_email"
                           type="email"
@@ -551,10 +592,10 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="border-t pt-6">
-                    <h4 className="font-medium mb-4">Bildirim Ayarlari</h4>
+                    <h4 className="font-medium mb-4">Bildirim Ayarları</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="notify_email">Bildirimlerin Gidecegi E-posta *</Label>
+                        <Label htmlFor="notify_email">Bildirimlerin Gideceği E-posta *</Label>
                         <Input
                           id="notify_email"
                           type="email"
@@ -584,10 +625,10 @@ export default function SettingsPage() {
                     <div className="flex items-start gap-3">
                       <SettingsIcon className="w-5 h-5 text-muted-foreground mt-0.5" />
                       <div>
-                        <h4 className="font-medium">Gmail Kullaniyorsaniz</h4>
+                        <h4 className="font-medium">Gmail Kullanıyorsanız</h4>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Gmail hesabinizda 2 Adimli Dogrulama aktif olmali ve 
-                          "Uygulama Sifresi" olusturmaniz gerekir. Normal sifrenizi kullanamazsiniz.
+                          Gmail hesabınızda 2 Adımlı Doğrulama aktif olmalı ve 
+                          &quot;Uygulama Şifresi&quot; oluşturmanız gerekir. Normal şifrenizi kullanamazsınız.
                         </p>
                       </div>
                     </div>
@@ -595,7 +636,7 @@ export default function SettingsPage() {
 
                   <div className="flex flex-wrap gap-3">
                     <Button type="submit" disabled={saving} data-testid="smtp-save">
-                      {saving ? "Kaydediliyor..." : "Ayarlari Kaydet"}
+                      {saving ? "Kaydediliyor..." : "Ayarları Kaydet"}
                     </Button>
                     <Button
                       type="button"
@@ -605,7 +646,7 @@ export default function SettingsPage() {
                       data-testid="smtp-test"
                     >
                       <Send className="w-4 h-4 mr-2" />
-                      {testing ? "Gonderiliyor..." : "Test E-postasi Gonder"}
+                      {testing ? "Gönderiliyor..." : "Test E-postası Gönder"}
                     </Button>
                   </div>
                 </form>
@@ -623,10 +664,10 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="w-5 h-5" />
-                    Zamanlayici Durumu
+                    Zamanlayıcı Durumu
                   </CardTitle>
                   <CardDescription>
-                    Otomatik hatirlatma e-postalari her gun saat 08:00'da (UTC+3 Turkiye) gonderilir
+                    Otomatik hatırlatma e-postaları her gün saat 08:00'da (UTC+3 Türkiye) gönderilir
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -642,11 +683,11 @@ export default function SettingsPage() {
                       </p>
                     </div>
                     <div className="bg-muted/50 rounded-lg p-4 border border-border">
-                      <p className="text-sm text-muted-foreground">Gonderim Saati</p>
+                      <p className="text-sm text-muted-foreground">Gönderim Saati</p>
                       <p className="text-lg font-semibold mt-1">08:00 (TR)</p>
                     </div>
                     <div className="bg-muted/50 rounded-lg p-4 border border-border">
-                      <p className="text-sm text-muted-foreground">Sonraki Calisma</p>
+                      <p className="text-sm text-muted-foreground">Sonraki Çalışma</p>
                       <p className="text-lg font-semibold mt-1">
                         {schedulerStatus?.next_run || "-"}
                       </p>
@@ -660,10 +701,10 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bell className="w-5 h-5" />
-                    Hatirlatma Kurallari
+                    Hatırlatma Kuralları
                   </CardTitle>
                   <CardDescription>
-                    Odeme hatirlaticilerinin ne zaman gonderilecegini yapilandirin
+                    Ödeme hatırlatıcılarının ne zaman gönderileceğini yapılandırın
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -672,7 +713,7 @@ export default function SettingsPage() {
                       <div className="space-y-2">
                         <Label htmlFor="days_before">
                           <Calendar className="w-4 h-4 inline mr-1" />
-                          Kac gun once hatirlatsin?
+                          Kaç gün önce hatırlatsın?
                         </Label>
                         <div className="flex items-center gap-3">
                           <Input
@@ -685,15 +726,15 @@ export default function SettingsPage() {
                             className="w-24"
                             data-testid="days-before"
                           />
-                          <span className="text-sm text-muted-foreground">gun once</span>
+                          <span className="text-sm text-muted-foreground">gün önce</span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Odeme vadesinden belirtilen gun sayisi kadar once hatirlatma e-postasi gonderilir
+                          Ödeme vadesinden belirtilen gün sayısı kadar önce hatırlatma e-postası gönderilir
                         </p>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Vade gununde hatirlatma</Label>
+                        <Label>Vade gününde hatırlatma</Label>
                         <div className="flex items-center gap-3 mt-2">
                           <Switch
                             checked={reminderForm.send_on_due_date}
@@ -701,7 +742,7 @@ export default function SettingsPage() {
                             data-testid="send-on-due-date"
                           />
                           <span className="text-sm text-muted-foreground">
-                            {reminderForm.send_on_due_date ? "Aktif - Vade gununde de e-posta gonderilir" : "Pasif"}
+                            {reminderForm.send_on_due_date ? "Aktif - Vade gününde de e-posta gönderilir" : "Pasif"}
                           </span>
                         </div>
                       </div>
@@ -710,7 +751,7 @@ export default function SettingsPage() {
                     <div className="border-t pt-6">
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
-                          <Label>Otomatik Zamanlayici</Label>
+                          <Label>Otomatik Zamanlayıcı</Label>
                           <div className="flex items-center gap-3">
                             <Switch
                               checked={reminderForm.is_scheduler_active}
@@ -718,7 +759,7 @@ export default function SettingsPage() {
                               data-testid="scheduler-active"
                             />
                             <span className="text-sm text-muted-foreground">
-                              {reminderForm.is_scheduler_active ? "Aktif - Her gun 08:00'da (Turkiye) otomatik kontrol" : "Pasif - Manuel gonderim"}
+                              {reminderForm.is_scheduler_active ? "Aktif - Her gün 08:00'da (Türkiye) otomatik kontrol" : "Pasif - Manuel gönderim"}
                             </span>
                           </div>
                         </div>
@@ -729,11 +770,11 @@ export default function SettingsPage() {
                       <div className="flex items-start gap-3">
                         <SettingsIcon className="w-5 h-5 text-muted-foreground mt-0.5" />
                         <div>
-                          <h4 className="font-medium">Nasil Calisir?</h4>
+                          <h4 className="font-medium">Nasıl Çalışır?</h4>
                           <p className="text-sm text-muted-foreground mt-1">
-                            Sistem her gun sabah 08:00'da (UTC+3) otomatik olarak odeme hatirlaticilerinizi kontrol eder.
-                            Vadesi {reminderForm.days_before} gun icinde olan, bugun vadesi dolan ve vadesi gecmis odemeler
-                            icin e-posta bildirimi gonderir.
+                            Sistem her gün sabah 08:00'da (UTC+3) otomatik olarak ödeme hatırlatıcılarınızı kontrol eder.
+                            Vadesi {reminderForm.days_before} gün içinde olan, bugün vadesi dolan ve vadesi geçmiş ödemeler
+                            için e-posta bildirimi gönderir.
                           </p>
                         </div>
                       </div>
@@ -741,7 +782,7 @@ export default function SettingsPage() {
 
                     <div className="flex flex-wrap gap-3">
                       <Button type="submit" disabled={savingReminder} data-testid="save-reminder-settings">
-                        {savingReminder ? "Kaydediliyor..." : "Ayarlari Kaydet"}
+                        {savingReminder ? "Kaydediliyor..." : "Ayarları Kaydet"}
                       </Button>
                       <Button
                         type="button"
@@ -751,7 +792,7 @@ export default function SettingsPage() {
                         data-testid="send-reminders-manual"
                       >
                         <Send className="w-4 h-4 mr-2" />
-                        {sendingReminders ? "Gonderiliyor..." : "Simdi Manuel Gonder"}
+                        {sendingReminders ? "Gönderiliyor..." : "Şimdi Manuel Gönder"}
                       </Button>
                     </div>
                   </form>

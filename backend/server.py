@@ -44,8 +44,19 @@ class UserCreate(BaseModel):
     name: str
     role: str = "user"
 
+class UserInvite(BaseModel):
+    email: EmailStr
+    name: str
+    phone: Optional[str] = None
+    role: str = "user"
+    company_ids: List[str] = []
+
 class UserLogin(BaseModel):
     email: EmailStr
+    password: str
+
+class SetPasswordRequest(BaseModel):
+    token: str
     password: str
 
 class UserResponse(BaseModel):
@@ -54,6 +65,9 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: str
+    phone: Optional[str] = None
+    company_ids: Optional[List[str]] = None
+    status: Optional[str] = None
     created_at: str
 
 class CompanyCreate(BaseModel):
@@ -319,6 +333,8 @@ def format_currency(amount, currency="TRY"):
     return f"{symbol} {formatted}"
 
 def get_email_template(title: str, content: str, footer_text: str = ""):
+    default_footer = "Bu e-posta FinTres Pro tarafından otomatik olarak gönderilmiştir."
+    footer = footer_text if footer_text else default_footer
     return f'''<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -331,25 +347,22 @@ def get_email_template(title: str, content: str, footer_text: str = ""):
         <tr>
             <td style="padding: 40px 0;">
                 <table role="presentation" style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                    <!-- Header -->
                     <tr>
                         <td style="padding: 32px 40px; background-color: #1e293b; border-radius: 8px 8px 0 0;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">FinTres Pro</h1>
-                            <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 14px;">Finans Yonetim Sistemi</p>
+                            <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 14px;">Finans Y&#246;netim Sistemi</p>
                         </td>
                     </tr>
-                    <!-- Content -->
                     <tr>
                         <td style="padding: 40px;">
                             <h2 style="margin: 0 0 24px 0; color: #1e293b; font-size: 20px; font-weight: 600;">{title}</h2>
                             {content}
                         </td>
                     </tr>
-                    <!-- Footer -->
                     <tr>
                         <td style="padding: 24px 40px; background-color: #f8fafc; border-radius: 0 0 8px 8px; border-top: 1px solid #e2e8f0;">
                             <p style="margin: 0; color: #64748b; font-size: 12px; text-align: center;">
-                                {footer_text if footer_text else "Bu e-posta FinTres Pro tarafindan otomatik olarak gonderilmistir."}
+                                {footer}
                             </p>
                         </td>
                     </tr>
@@ -377,12 +390,12 @@ def get_reminder_email_content(reminders: list, companies: dict):
     
     content = f'''
     <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.6;">
-        Asagida yaklasmakta olan veya vadesi gecmis odeme hatirlaticilariniz listelenmistir.
+        A&#351;a&#287;&#305;da yakla&#351;makta olan veya vadesi ge&#231;mi&#351; &#246;deme hat&#305;rlat&#305;c&#305;lar&#305;n&#305;z listelenmistir.
     </p>
     <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
         <thead>
             <tr style="background-color: #f8fafc;">
-                <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Odeme</th>
+                <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">&#214;deme</th>
                 <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Firma</th>
                 <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Vade Tarihi</th>
                 <th style="padding: 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Tutar</th>
@@ -393,7 +406,7 @@ def get_reminder_email_content(reminders: list, companies: dict):
         </tbody>
     </table>
     <p style="margin: 0; color: #64748b; font-size: 13px;">
-        Lutfen odemelerin zamaninda yapildigindan emin olun.
+        L&#252;tfen &#246;demelerin zaman&#305;nda yap&#305;ld&#305;&#287;&#305;ndan emin olun.
     </p>'''
     
     return content
@@ -417,7 +430,7 @@ def _build_reminder_table(reminders: list, companies: dict, header_color: str, h
     <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
         <thead>
             <tr style="background-color: {header_bg};">
-                <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Odeme</th>
+                <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">&#214;deme</th>
                 <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Firma</th>
                 <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Vade Tarihi</th>
                 <th style="padding: 10px 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Tutar</th>
@@ -428,29 +441,29 @@ def _build_reminder_table(reminders: list, companies: dict, header_color: str, h
 
 def get_reminder_email_content_grouped(today: list, overdue: list, upcoming: list, companies: dict):
     content = '''<p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.6;">
-        Asagida odeme hatirlaticilariniz listelenmistir.
+        A&#351;a&#287;&#305;da &#246;deme hat&#305;rlat&#305;c&#305;lar&#305;n&#305;z listelenmistir.
     </p>'''
     
     if overdue:
         content += f'''<h3 style="margin: 0 0 12px 0; color: #dc2626; font-size: 16px; font-weight: 600; border-left: 4px solid #dc2626; padding-left: 12px;">
-            Vadesi Gecmis ({len(overdue)} odeme)
+            Vadesi Ge&#231;mi&#351; ({len(overdue)} &#246;deme)
         </h3>'''
         content += _build_reminder_table(overdue, companies, "#dc2626", "#fef2f2")
     
     if today:
         content += f'''<h3 style="margin: 0 0 12px 0; color: #ea580c; font-size: 16px; font-weight: 600; border-left: 4px solid #ea580c; padding-left: 12px;">
-            Bugun Vadesi Dolan ({len(today)} odeme)
+            Bug&#252;n Vadesi Dolan ({len(today)} &#246;deme)
         </h3>'''
         content += _build_reminder_table(today, companies, "#ea580c", "#fff7ed")
     
     if upcoming:
         content += f'''<h3 style="margin: 0 0 12px 0; color: #2563eb; font-size: 16px; font-weight: 600; border-left: 4px solid #2563eb; padding-left: 12px;">
-            Yaklasan Odemeler ({len(upcoming)} odeme)
+            Yakla&#351;an &#214;demeler ({len(upcoming)} &#246;deme)
         </h3>'''
         content += _build_reminder_table(upcoming, companies, "#2563eb", "#eff6ff")
     
     content += '''<p style="margin: 16px 0 0 0; color: #64748b; font-size: 13px;">
-        Lutfen odemelerin zamaninda yapildigindan emin olun.
+        L&#252;tfen &#246;demelerin zaman&#305;nda yap&#305;ld&#305;&#287;&#305;ndan emin olun.
     </p>'''
     
     return content
@@ -519,17 +532,17 @@ async def send_reminder_notifications():
     
     # E-posta içeriği oluştur
     content = get_reminder_email_content_grouped(today_reminders, overdue_reminders, upcoming_reminders, companies)
-    html = get_email_template("Odeme Hatirlaticisi", content)
+    html = get_email_template("Ödeme Hatırlatıcısı", content)
     
     subject_parts = []
     if overdue_reminders:
-        subject_parts.append(f"{len(overdue_reminders)} Gecikmi{'s' if len(overdue_reminders) > 1 else 's'}")
+        subject_parts.append(f"{len(overdue_reminders)} Gecikmiş")
     if today_reminders:
-        subject_parts.append(f"{len(today_reminders)} Bugunki")
+        subject_parts.append(f"{len(today_reminders)} Bugünkü")
     if upcoming_reminders:
-        subject_parts.append(f"{len(upcoming_reminders)} Yaklasan")
+        subject_parts.append(f"{len(upcoming_reminders)} Yaklaşan")
     
-    subject = f"FinTres Pro - {', '.join(subject_parts)} Odeme"
+    subject = f"FinTres Pro - {', '.join(subject_parts)} Ödeme"
     
     await send_email(settings['notify_email'], subject, html)
 
@@ -551,6 +564,7 @@ async def register(user: UserCreate, current_user: dict = Depends(get_current_us
         "password": hash_password(user.password),
         "name": user.name,
         "role": user.role,
+        "status": "active",
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_doc)
@@ -565,10 +579,139 @@ async def register(user: UserCreate, current_user: dict = Depends(get_current_us
         }
     }
 
+@api_router.post("/auth/invite", response_model=dict)
+async def invite_user(invite: UserInvite, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    """Admin kullanıcı davet eder, davet e-postası gönderilir"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin kullanıcı davet edebilir")
+    
+    existing = await db.users.find_one({"email": invite.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu e-posta zaten kayıtlı")
+    
+    invite_token = str(uuid.uuid4())
+    
+    user_doc = {
+        "id": str(uuid.uuid4()),
+        "email": invite.email,
+        "password": "",
+        "name": invite.name,
+        "phone": invite.phone or "",
+        "role": invite.role,
+        "company_ids": invite.company_ids,
+        "status": "pending",
+        "invite_token": invite_token,
+        "invite_expires": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    # Davet e-postası gönder
+    background_tasks.add_task(send_invite_email, invite.email, invite.name, invite_token)
+    
+    return {
+        "message": "Davet gönderildi",
+        "user": {
+            "id": user_doc["id"],
+            "email": user_doc["email"],
+            "name": user_doc["name"],
+            "role": user_doc["role"],
+            "status": "pending"
+        }
+    }
+
+@api_router.get("/auth/invite-info")
+async def get_invite_info(token: str):
+    """Token ile davet bilgilerini getir (public endpoint)"""
+    user = await db.users.find_one({"invite_token": token}, {"_id": 0, "password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Geçersiz davet bağlantısı")
+    
+    if user.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Bu davet zaten kullanılmış")
+    
+    expires = user.get("invite_expires", "")
+    if expires and datetime.fromisoformat(expires) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Davet süresi dolmuş")
+    
+    return {
+        "name": user["name"],
+        "email": user["email"]
+    }
+
+@api_router.post("/auth/set-password")
+async def set_password(req: SetPasswordRequest):
+    """Davet edilen kullanıcı şifresini oluşturur (public endpoint)"""
+    user = await db.users.find_one({"invite_token": req.token}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Geçersiz davet bağlantısı")
+    
+    if user.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="Bu davet zaten kullanılmış")
+    
+    expires = user.get("invite_expires", "")
+    if expires and datetime.fromisoformat(expires) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Davet süresi dolmuş")
+    
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Şifre en az 6 karakter olmalı")
+    
+    await db.users.update_one(
+        {"invite_token": req.token},
+        {"$set": {
+            "password": hash_password(req.password),
+            "status": "active",
+            "invite_token": None,
+            "invite_expires": None
+        }}
+    )
+    
+    return {"message": "Şifreniz oluşturuldu. Artık giriş yapabilirsiniz."}
+
+async def send_invite_email(email: str, name: str, token: str):
+    """Davet e-postası gönder"""
+    frontend_url = os.environ.get('FRONTEND_URL', os.environ.get('REACT_APP_BACKEND_URL', ''))
+    invite_link = f"{frontend_url}/set-password?token={token}"
+    
+    content = f'''
+    <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+        Merhaba <strong>{name}</strong>,
+    </p>
+    <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+        FinTres Pro sistemine davet edildiniz. Hesab&#305;n&#305;z&#305; aktifle&#351;tirmek i&#231;in a&#351;a&#287;&#305;daki butona t&#305;klayarak &#351;ifrenizi olu&#351;turun.
+    </p>
+    <table role="presentation" style="margin: 0 auto 24px auto;">
+        <tr>
+            <td style="background-color: #6366f1; border-radius: 8px;">
+                <a href="{invite_link}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600;">
+                    &#350;ifremi Olu&#351;tur
+                </a>
+            </td>
+        </tr>
+    </table>
+    <p style="margin: 0 0 8px 0; color: #64748b; font-size: 13px;">
+        Veya bu ba&#287;lant&#305;y&#305; taray&#305;c&#305;n&#305;za yap&#305;&#351;t&#305;r&#305;n:
+    </p>
+    <p style="margin: 0 0 24px 0; color: #6366f1; font-size: 13px; word-break: break-all;">
+        {invite_link}
+    </p>
+    <p style="margin: 0; color: #94a3b8; font-size: 12px;">
+        Bu ba&#287;lant&#305; 7 g&#252;n ge&#231;erlidir.
+    </p>
+    '''
+    html = get_email_template("FinTres Pro Davet", content)
+    await send_email(email, "FinTres Pro - Hesap Daveti", html)
+
 @api_router.post("/auth/login", response_model=dict)
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
-    if not user or not verify_password(credentials.password, user["password"]):
+    if not user:
+        raise HTTPException(status_code=401, detail="Geçersiz e-posta veya şifre")
+    
+    if user.get("status") == "pending":
+        raise HTTPException(status_code=401, detail="Hesabınız henüz aktif değil. Lütfen davet e-postanızdaki bağlantıya tıklayarak şifrenizi oluşturun.")
+    
+    if not user.get("password") or not verify_password(credentials.password, user["password"]):
         raise HTTPException(status_code=401, detail="Geçersiz e-posta veya şifre")
     
     token = create_token(user["id"], user["email"], user["role"])
@@ -589,6 +732,9 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         email=current_user["email"],
         name=current_user["name"],
         role=current_user["role"],
+        phone=current_user.get("phone"),
+        company_ids=current_user.get("company_ids"),
+        status=current_user.get("status", "active"),
         created_at=current_user["created_at"]
     )
 
@@ -1003,10 +1149,10 @@ async def test_smtp_settings(current_user: dict = Depends(get_current_user)):
     
     content = '''
     <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.6;">
-        Bu bir test e-postasidir. SMTP ayarlariniz basariyla yapilandirilmistir.
+        Bu bir test e-postas&#305;d&#305;r. SMTP ayarlar&#305;n&#305;z ba&#351;ar&#305;yla yap&#305;land&#305;r&#305;lm&#305;&#351;t&#305;r.
     </p>
     <p style="margin: 0; color: #64748b; font-size: 14px;">
-        Artik odeme hatirlaticilari bu e-posta adresine gonderilecektir.
+        Art&#305;k &#246;deme hat&#305;rlat&#305;c&#305;lar&#305; bu e-posta adresine g&#246;nderilecektir.
     </p>
     '''
     html = get_email_template("SMTP Test", content)
@@ -1080,7 +1226,7 @@ async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
         "is_running": is_running,
         "has_job": job is not None,
         "next_run": next_run,
-        "send_time": "08:00 (UTC+3 Turkiye)"
+        "send_time": "08:00 (UTC+3 Türkiye)"
     }
 
 # ============ REPORTS / DASHBOARD ============
