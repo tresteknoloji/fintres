@@ -267,7 +267,6 @@ class BankAccountCreate(BaseModel):
     iban: Optional[str] = None
     currency: str = "TRY"
     balance: float = 0
-    kmh_limit: float = 0
     notes: Optional[str] = None
 
 class BankAccountResponse(BaseModel):
@@ -279,7 +278,27 @@ class BankAccountResponse(BaseModel):
     iban: Optional[str] = None
     currency: str
     balance: float
-    kmh_limit: float
+    notes: Optional[str] = None
+    created_at: str
+
+class KmhAccountCreate(BaseModel):
+    company_id: str
+    bank_name: str
+    account_name: Optional[str] = None
+    currency: str = "TRY"
+    total_limit: float = 0
+    available_limit: float = 0
+    notes: Optional[str] = None
+
+class KmhAccountResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    company_id: str
+    bank_name: str
+    account_name: Optional[str] = None
+    currency: str
+    total_limit: float
+    available_limit: float
     notes: Optional[str] = None
     created_at: str
 
@@ -1207,23 +1226,60 @@ async def delete_credit_card(card_id: str, current_user: dict = Depends(get_curr
         raise HTTPException(status_code=404, detail="Kart bulunamadı")
     return {"message": "Kart silindi"}
 
+# ============ KMH ACCOUNT ROUTES ============
+
+@api_router.post("/kmh-accounts", response_model=KmhAccountResponse)
+async def create_kmh_account(account: KmhAccountCreate, current_user: dict = Depends(get_current_user)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        **account.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.kmh_accounts.insert_one(doc)
+    return KmhAccountResponse(**{k: v for k, v in doc.items() if k != "_id"})
+
+@api_router.get("/kmh-accounts", response_model=List[KmhAccountResponse])
+async def get_kmh_accounts(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"company_id": company_id} if company_id else {}
+    items = await db.kmh_accounts.find(query, {"_id": 0}).to_list(1000)
+    return [KmhAccountResponse(**i) for i in items]
+
+@api_router.put("/kmh-accounts/{account_id}", response_model=KmhAccountResponse)
+async def update_kmh_account(account_id: str, account: KmhAccountCreate, current_user: dict = Depends(get_current_user)):
+    result = await db.kmh_accounts.update_one({"id": account_id}, {"$set": account.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="KMH hesabı bulunamadı")
+    updated = await db.kmh_accounts.find_one({"id": account_id}, {"_id": 0})
+    return KmhAccountResponse(**updated)
+
+@api_router.delete("/kmh-accounts/{account_id}")
+async def delete_kmh_account(account_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.kmh_accounts.delete_one({"id": account_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="KMH hesabı bulunamadı")
+    return {"message": "KMH hesabı silindi"}
+
 @api_router.get("/bank-cards/summary")
 async def get_bank_cards_summary(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     query = {"company_id": company_id} if company_id else {}
     accounts = await db.bank_accounts.find(query, {"_id": 0}).to_list(1000)
+    kmh_accounts = await db.kmh_accounts.find(query, {"_id": 0}).to_list(1000)
     cards = await db.credit_cards.find(query, {"_id": 0}).to_list(1000)
     
     total_balance = sum(a.get("balance", 0) for a in accounts)
-    total_kmh = sum(a.get("kmh_limit", 0) for a in accounts)
+    total_kmh_limit = sum(k.get("total_limit", 0) for k in kmh_accounts)
+    total_kmh_available = sum(k.get("available_limit", 0) for k in kmh_accounts)
     total_card_limit = sum(c.get("total_limit", 0) for c in cards)
-    total_available = sum(c.get("available_limit", 0) for c in cards)
+    total_card_available = sum(c.get("available_limit", 0) for c in cards)
     
     return {
         "total_balance": total_balance,
-        "total_kmh": total_kmh,
+        "total_kmh_limit": total_kmh_limit,
+        "total_kmh_available": total_kmh_available,
         "total_card_limit": total_card_limit,
-        "total_available": total_available,
+        "total_card_available": total_card_available,
         "account_count": len(accounts),
+        "kmh_count": len(kmh_accounts),
         "card_count": len(cards)
     }
 
