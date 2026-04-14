@@ -258,6 +258,58 @@ class ReminderResponse(BaseModel):
 
 # ============ SMTP SETTINGS MODEL ============
 
+# ============ BANK ACCOUNT & CREDIT CARD MODELS ============
+
+class BankAccountCreate(BaseModel):
+    company_id: str
+    bank_name: str
+    account_name: Optional[str] = None
+    iban: Optional[str] = None
+    currency: str = "TRY"
+    balance: float = 0
+    kmh_limit: float = 0
+    notes: Optional[str] = None
+
+class BankAccountResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    company_id: str
+    bank_name: str
+    account_name: Optional[str] = None
+    iban: Optional[str] = None
+    currency: str
+    balance: float
+    kmh_limit: float
+    notes: Optional[str] = None
+    created_at: str
+
+class CreditCardCreate(BaseModel):
+    company_id: str
+    bank_name: str
+    card_name: Optional[str] = None
+    last_four: Optional[str] = None
+    currency: str = "TRY"
+    total_limit: float = 0
+    available_limit: float = 0
+    cut_off_date: Optional[str] = None
+    due_date: Optional[str] = None
+    notes: Optional[str] = None
+
+class CreditCardResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    company_id: str
+    bank_name: str
+    card_name: Optional[str] = None
+    last_four: Optional[str] = None
+    currency: str
+    total_limit: float
+    available_limit: float
+    cut_off_date: Optional[str] = None
+    due_date: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: str
+
 class SMTPSettingsCreate(BaseModel):
     smtp_host: str
     smtp_port: int = 587
@@ -1086,6 +1138,93 @@ async def get_budget_summary(company_id: Optional[str] = None, current_user: dic
         "income_by_category": [{"name": k, "value": v} for k, v in income_by_category.items()],
         "expense_by_category": [{"name": k, "value": v} for k, v in expense_by_category.items()],
         "items": all_items
+    }
+
+
+# ============ BANK ACCOUNT ROUTES ============
+
+@api_router.post("/bank-accounts", response_model=BankAccountResponse)
+async def create_bank_account(account: BankAccountCreate, current_user: dict = Depends(get_current_user)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        **account.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.bank_accounts.insert_one(doc)
+    return BankAccountResponse(**{k: v for k, v in doc.items() if k != "_id"})
+
+@api_router.get("/bank-accounts", response_model=List[BankAccountResponse])
+async def get_bank_accounts(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"company_id": company_id} if company_id else {}
+    items = await db.bank_accounts.find(query, {"_id": 0}).to_list(1000)
+    return [BankAccountResponse(**i) for i in items]
+
+@api_router.put("/bank-accounts/{account_id}", response_model=BankAccountResponse)
+async def update_bank_account(account_id: str, account: BankAccountCreate, current_user: dict = Depends(get_current_user)):
+    result = await db.bank_accounts.update_one({"id": account_id}, {"$set": account.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Hesap bulunamadı")
+    updated = await db.bank_accounts.find_one({"id": account_id}, {"_id": 0})
+    return BankAccountResponse(**updated)
+
+@api_router.delete("/bank-accounts/{account_id}")
+async def delete_bank_account(account_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.bank_accounts.delete_one({"id": account_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Hesap bulunamadı")
+    return {"message": "Hesap silindi"}
+
+# ============ CREDIT CARD ROUTES ============
+
+@api_router.post("/credit-cards", response_model=CreditCardResponse)
+async def create_credit_card(card: CreditCardCreate, current_user: dict = Depends(get_current_user)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        **card.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.credit_cards.insert_one(doc)
+    return CreditCardResponse(**{k: v for k, v in doc.items() if k != "_id"})
+
+@api_router.get("/credit-cards", response_model=List[CreditCardResponse])
+async def get_credit_cards(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"company_id": company_id} if company_id else {}
+    items = await db.credit_cards.find(query, {"_id": 0}).to_list(1000)
+    return [CreditCardResponse(**i) for i in items]
+
+@api_router.put("/credit-cards/{card_id}", response_model=CreditCardResponse)
+async def update_credit_card(card_id: str, card: CreditCardCreate, current_user: dict = Depends(get_current_user)):
+    result = await db.credit_cards.update_one({"id": card_id}, {"$set": card.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Kart bulunamadı")
+    updated = await db.credit_cards.find_one({"id": card_id}, {"_id": 0})
+    return CreditCardResponse(**updated)
+
+@api_router.delete("/credit-cards/{card_id}")
+async def delete_credit_card(card_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.credit_cards.delete_one({"id": card_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Kart bulunamadı")
+    return {"message": "Kart silindi"}
+
+@api_router.get("/bank-cards/summary")
+async def get_bank_cards_summary(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"company_id": company_id} if company_id else {}
+    accounts = await db.bank_accounts.find(query, {"_id": 0}).to_list(1000)
+    cards = await db.credit_cards.find(query, {"_id": 0}).to_list(1000)
+    
+    total_balance = sum(a.get("balance", 0) for a in accounts)
+    total_kmh = sum(a.get("kmh_limit", 0) for a in accounts)
+    total_card_limit = sum(c.get("total_limit", 0) for c in cards)
+    total_available = sum(c.get("available_limit", 0) for c in cards)
+    
+    return {
+        "total_balance": total_balance,
+        "total_kmh": total_kmh,
+        "total_card_limit": total_card_limit,
+        "total_available": total_available,
+        "account_count": len(accounts),
+        "card_count": len(cards)
     }
 
 # ============ REMINDER ROUTES ============

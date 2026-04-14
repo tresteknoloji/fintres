@@ -19,7 +19,8 @@ import {
   Check,
   Sun,
   Moon,
-  Calculator
+  Calculator,
+  Landmark
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Gelirler", href: "/incomes", icon: TrendingUp },
   { name: "Giderler", href: "/expenses", icon: TrendingDown },
   { name: "Personel", href: "/personnel", icon: Users },
+  { name: "Banka & Kartlar", href: "/bank-cards", icon: Landmark },
   { name: "Hatırlatıcılar", href: "/reminders", icon: Bell },
   { name: "Nakit Akışı", href: "/budget", icon: Calculator },
   { name: "Raporlar", href: "/reports", icon: BarChart3 },
