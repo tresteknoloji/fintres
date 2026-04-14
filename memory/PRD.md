@@ -8,7 +8,7 @@ Multi-company pre-accounting/finance tracking software. Income, Expenses, Person
 - Frontend: React + TailwindCSS + Shadcn UI + Recharts
 - Backend: FastAPI + Motor (async MongoDB) + APScheduler
 - Database: MongoDB
-- Auth: JWT (no open registration, first user = admin)
+- Auth: JWT (no open registration, first user = admin, invitation system)
 
 ## Core Requirements
 1. Multi-company management (single + combined "Tum Firmalar" view)
@@ -22,6 +22,7 @@ Multi-company pre-accounting/finance tracking software. Income, Expenses, Person
 9. Project name: "FinTres Pro"
 10. Automatic daily reminder emails at 08:00 UTC+3 (Turkish time)
 11. Configurable reminder settings (days before due date, due date reminder)
+12. User invitation system (admin invites, user sets own password via email link)
 
 ## Completed Features (as of 2026-04-14)
 - [x] FastAPI + React full-stack setup with Shadcn UI
@@ -33,17 +34,20 @@ Multi-company pre-accounting/finance tracking software. Income, Expenses, Person
 - [x] Budget Page (recurring incomes/expenses, cash flow calculation)
 - [x] Reminders page
 - [x] Reports page
-- [x] Settings page (Profile, Users management, SMTP configuration)
+- [x] Settings page (Profile, Users management, SMTP configuration, Reminder settings)
 - [x] SMTP backend endpoints (save, get, test, send-reminders)
 - [x] Corporate email template (no emoji, responsive, grouped by urgency)
 - [x] Project renamed to "FinTres Pro" everywhere
 - [x] APScheduler: Automatic daily reminder emails at 08:00 UTC+3
 - [x] Admin-configurable reminder settings (days_before, send_on_due_date, scheduler on/off)
-- [x] Scheduler status display (active/passive, next run time, send time)
-- [x] Grouped email template (overdue, today, upcoming)
+- [x] Full Turkish character support across all UI and email templates
+- [x] User invitation system: admin invites with name/email/phone/company access
+- [x] Set Password page: invited users create their own password via email link
+- [x] User table shows: name, email, phone, role, status (Aktif/Davet Bekliyor)
 
 ## API Endpoints
 - /api/auth/login, /api/auth/me, /api/auth/register
+- /api/auth/invite, /api/auth/invite-info, /api/auth/set-password
 - /api/companies (CRUD)
 - /api/incomes (CRUD)
 - /api/expenses (CRUD)
@@ -60,5 +64,6 @@ Multi-company pre-accounting/finance tracking software. Income, Expenses, Person
 
 ## Backlog (P2)
 - [ ] server.py modularization (split routes into separate files)
-- [ ] Password change functionality for users
+- [ ] User profile edit (change own password)
 - [ ] Export data to Excel/PDF
+- [ ] Company-based data filtering for non-admin users (based on company_ids)
