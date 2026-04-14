@@ -506,7 +506,14 @@ export default function BudgetPage() {
 
         {/* Expenses Tab */}
         <TabsContent value="expenses" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <div>
+              {expenseItems.filter(i => !i.is_active).length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {expenseItems.filter(i => !i.is_active).length} pasif kalem tabloda soluk görünür, switch ile tekrar aktif edebilirsiniz
+                </p>
+              )}
+            </div>
             <Button onClick={() => openAddDialog("expense")} data-testid="add-expense-btn">
               <Plus className="w-4 h-4 mr-2" />
               Düzenli Gider Ekle
@@ -578,7 +585,14 @@ export default function BudgetPage() {
 
         {/* Incomes Tab */}
         <TabsContent value="incomes" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <div>
+              {incomeItems.filter(i => !i.is_active).length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {incomeItems.filter(i => !i.is_active).length} pasif kalem tabloda soluk görünür, switch ile tekrar aktif edebilirsiniz
+                </p>
+              )}
+            </div>
             <Button onClick={() => openAddDialog("income")} data-testid="add-income-btn">
               <Plus className="w-4 h-4 mr-2" />
               Düzenli Gelir Ekle
