@@ -18,7 +18,8 @@ import {
   ChevronDown,
   Check,
   Sun,
-  Moon
+  Moon,
+  Calculator
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -37,6 +38,7 @@ const navigation = [
   { name: "Giderler", href: "/expenses", icon: TrendingDown },
   { name: "Personel", href: "/personnel", icon: Users },
   { name: "Hatırlatıcılar", href: "/reminders", icon: Bell },
+  { name: "Nakit Akışı", href: "/budget", icon: Calculator },
   { name: "Raporlar", href: "/reports", icon: BarChart3 },
   { name: "Ayarlar", href: "/settings", icon: Settings }
 ];

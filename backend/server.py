@@ -183,6 +183,33 @@ class SalaryPaymentResponse(BaseModel):
     notes: Optional[str] = None
     created_at: str
 
+# ============ RECURRING (BUDGET) MODELS ============
+
+class RecurringItemCreate(BaseModel):
+    company_id: str
+    name: str
+    amount: float
+    currency: str = "TRY"
+    category: str
+    item_type: str  # "income" or "expense"
+    frequency: str = "monthly"  # monthly, yearly
+    is_active: bool = True
+    notes: Optional[str] = None
+
+class RecurringItemResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    company_id: str
+    name: str
+    amount: float
+    currency: str
+    category: str
+    item_type: str
+    frequency: str
+    is_active: bool
+    notes: Optional[str] = None
+    created_at: str
+
 class ReminderCreate(BaseModel):
     company_id: str
     title: str
@@ -539,6 +566,88 @@ async def get_salaries(company_id: Optional[str] = None, current_user: dict = De
     query = {"company_id": company_id} if company_id else {}
     salaries = await db.salaries.find(query, {"_id": 0}).to_list(1000)
     return [SalaryPaymentResponse(**s) for s in salaries]
+
+# ============ RECURRING ITEMS (BUDGET) ROUTES ============
+
+@api_router.post("/recurring", response_model=RecurringItemResponse)
+async def create_recurring_item(item: RecurringItemCreate, current_user: dict = Depends(get_current_user)):
+    item_doc = {
+        "id": str(uuid.uuid4()),
+        **item.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.recurring_items.insert_one(item_doc)
+    return RecurringItemResponse(**{k: v for k, v in item_doc.items() if k != "_id"})
+
+@api_router.get("/recurring", response_model=List[RecurringItemResponse])
+async def get_recurring_items(company_id: Optional[str] = None, item_type: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {}
+    if company_id:
+        query["company_id"] = company_id
+    if item_type:
+        query["item_type"] = item_type
+    items = await db.recurring_items.find(query, {"_id": 0}).to_list(1000)
+    return [RecurringItemResponse(**i) for i in items]
+
+@api_router.put("/recurring/{item_id}", response_model=RecurringItemResponse)
+async def update_recurring_item(item_id: str, item: RecurringItemCreate, current_user: dict = Depends(get_current_user)):
+    result = await db.recurring_items.update_one({"id": item_id}, {"$set": item.model_dump()})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Kayıt bulunamadı")
+    updated = await db.recurring_items.find_one({"id": item_id}, {"_id": 0})
+    return RecurringItemResponse(**updated)
+
+@api_router.delete("/recurring/{item_id}")
+async def delete_recurring_item(item_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.recurring_items.delete_one({"id": item_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Kayıt bulunamadı")
+    return {"message": "Kayıt silindi"}
+
+@api_router.get("/budget/summary")
+async def get_budget_summary(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"is_active": True}
+    if company_id:
+        query["company_id"] = company_id
+    
+    items = await db.recurring_items.find(query, {"_id": 0}).to_list(1000)
+    
+    monthly_income = 0
+    monthly_expense = 0
+    yearly_income = 0
+    yearly_expense = 0
+    
+    income_by_category = {}
+    expense_by_category = {}
+    
+    for item in items:
+        amount = item["amount"]
+        # Convert yearly to monthly for comparison
+        monthly_amount = amount if item["frequency"] == "monthly" else amount / 12
+        yearly_amount = amount * 12 if item["frequency"] == "monthly" else amount
+        
+        if item["item_type"] == "income":
+            monthly_income += monthly_amount
+            yearly_income += yearly_amount
+            cat = item["category"]
+            income_by_category[cat] = income_by_category.get(cat, 0) + monthly_amount
+        else:
+            monthly_expense += monthly_amount
+            yearly_expense += yearly_amount
+            cat = item["category"]
+            expense_by_category[cat] = expense_by_category.get(cat, 0) + monthly_amount
+    
+    return {
+        "monthly_income": monthly_income,
+        "monthly_expense": monthly_expense,
+        "monthly_net": monthly_income - monthly_expense,
+        "yearly_income": yearly_income,
+        "yearly_expense": yearly_expense,
+        "yearly_net": yearly_income - yearly_expense,
+        "income_by_category": [{"name": k, "value": v} for k, v in income_by_category.items()],
+        "expense_by_category": [{"name": k, "value": v} for k, v in expense_by_category.items()],
+        "items": items
+    }
 
 # ============ REMINDER ROUTES ============
 

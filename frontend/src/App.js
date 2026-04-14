@@ -12,6 +12,7 @@ import ExpensesPage from "./pages/ExpensesPage";
 import PersonnelPage from "./pages/PersonnelPage";
 import RemindersPage from "./pages/RemindersPage";
 import ReportsPage from "./pages/ReportsPage";
+import BudgetPage from "./pages/BudgetPage";
 import SettingsPage from "./pages/SettingsPage";
 import "./App.css";
 
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="personnel" element={<PersonnelPage />} />
         <Route path="reminders" element={<RemindersPage />} />
+        <Route path="budget" element={<BudgetPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
