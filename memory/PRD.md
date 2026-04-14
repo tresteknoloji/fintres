@@ -1,106 +1,45 @@
-# FinTrack Pro - PRD (Product Requirements Document)
+# FinTres Pro - Product Requirements Document
 
-## Proje Özeti
-**Proje Adı:** FinTrack Pro - Çoklu Firma Finans Yönetimi  
-**Oluşturma Tarihi:** 28 Şubat 2026  
-**Durum:** MVP Tamamlandı
+## Original Problem Statement
+Multi-company pre-accounting/finance tracking software. Income, Expenses, Personnel, Salaries, Bank/Card/Credit/Rent payment reminders. Two companies managed from a single panel with ability to add more.
+- Companies: Tres Teknoloji A.S. & Netlen Internet Hizmetleri Ltd. Sti.
 
-## Orijinal Problem Statement
-Muhasebe/ön muhasebe yazılımı. Gelirler, Giderler, personeller, Maaşlar, Banka kart kredi kira vs. ödeme hatırlatmaları. 2 Firma var (Tres Teknoloji A.Ş., Netlen İnternet Hizmetleri Ltd. Şti.) ortak panelden takip edilecek ve sonradan firma eklenebilecek.
+## Tech Stack
+- Frontend: React + TailwindCSS + Shadcn UI + Recharts
+- Backend: FastAPI + Motor (async MongoDB)
+- Database: MongoDB
+- Auth: JWT (no open registration, first user = admin)
 
-## Kullanıcı Tercihleri
-- Çoklu kullanıcı yönetimi (admin/user rolleri)
-- Çoklu para birimi desteği (TRY, USD, EUR)
-- Detaylı raporlama (grafikler, aylık/yıllık karşılaştırma)
-- Ödeme hatırlatıcıları (sistemde görünsün, SMTP altyapısı hazır)
-- Fatura/belge yükleme şimdilik yok
+## Core Requirements
+1. Multi-company management (single + combined "Tum Firmalar" view)
+2. Multi-user system with role-based access (Admin/User), no open registration
+3. Income/Expense tracking with multi-currency support
+4. Personnel management (status filtering, advance tracking, detail modals)
+5. Budget/Cash Flow page for recurring revenues/expenses
+6. Payment reminders with automated SMTP email notifications
+7. Dark/Light theme toggle
+8. Corporate, responsive, emoji-free email template
+9. Project name: "FinTres Pro"
 
-## Kullanıcı Personaları
-1. **İşletme Sahibi:** Birden fazla firmanın finansal durumunu takip eden
-2. **Muhasebeci:** Gelir/gider kayıtlarını giren ve raporlayan
-3. **Yönetici:** Kullanıcıları ve firmaları yöneten
+## Completed Features (as of 2026-04-14)
+- [x] FastAPI + React full-stack setup with Shadcn UI
+- [x] JWT Authentication (admin auto-creation, no open registration)
+- [x] Multi-company CRUD (Income, Expense, Companies)
+- [x] Combined data viewing ("Tum Firmalar" dropdown)
+- [x] Dark/Light Theme toggle
+- [x] Personnel Module (status filtering, advance tracking, detail modal)
+- [x] Budget Page (recurring incomes/expenses, cash flow calculation)
+- [x] Reminders page
+- [x] Reports page
+- [x] Settings page (Profile, Users management, SMTP configuration)
+- [x] SMTP backend endpoints (save, get, test, send-reminders)
+- [x] Corporate email template (no emoji, responsive)
+- [x] Project renamed to "FinTres Pro" everywhere
 
-## Mimari
-- **Frontend:** React 19 + Shadcn UI + TailwindCSS + Recharts
-- **Backend:** FastAPI + MongoDB
-- **Authentication:** JWT tabanlı kimlik doğrulama
+## Upcoming Tasks (P1)
+- [ ] APScheduler: Automatic daily/weekly email reminders for upcoming payments
 
-## Tamamlanan Özellikler
-
-### ✅ MVP (28 Şubat 2026)
-1. **Kimlik Doğrulama**
-   - Kullanıcı kaydı ve girişi
-   - JWT tabanlı oturum yönetimi
-   - Rol bazlı erişim (admin/user)
-
-2. **Firma Yönetimi**
-   - Firma ekleme/düzenleme/silme
-   - Firma değiştirici (sidebar'da)
-   - Tüm firmalar görünümü
-
-3. **Gelir Yönetimi**
-   - Gelir kayıtları CRUD
-   - Kategoriler (Satış, Hizmet, Faiz vb.)
-   - Çoklu para birimi desteği
-
-4. **Gider Yönetimi**
-   - Gider kayıtları CRUD
-   - Kategoriler (Kira, Elektrik, Maaş vb.)
-   - Ödeme türleri (Nakit, Banka, Kredi Kartı vb.)
-
-5. **Personel Yönetimi**
-   - Personel kayıtları CRUD
-   - Maaş bilgileri
-   - Maaş ödemesi kaydı
-
-6. **Ödeme Hatırlatıcıları**
-   - Hatırlatıcı ekleme/düzenleme/silme
-   - Vade tarihi takibi
-   - Ödendi işaretleme
-   - Tekrarlayan ödemeler
-
-7. **Dashboard**
-   - Toplam gelir/gider/net bakiye
-   - Aylık gelir/gider grafiği (Bar Chart)
-   - Gider dağılımı (Pie Chart)
-
-8. **Raporlar**
-   - Genel bakış grafikleri
-   - Trend analizi (kümülatif)
-   - Kategori dağılımı detayları
-
-9. **Ayarlar**
-   - Profil bilgileri görüntüleme
-   - Kullanıcı yönetimi (admin)
-   - SMTP ayarları altyapısı (hazır, devre dışı)
-
-## Öncelikli Backlog
-
-### P0 (Kritik) - Yok
-Tüm temel özellikler tamamlandı.
-
-### P1 (Yüksek Öncelik)
-- [ ] SMTP entegrasyonu ile e-posta bildirimleri
-- [ ] Veri dışa aktarma (Excel/PDF)
-- [ ] Gelişmiş filtreleme ve arama
-
-### P2 (Orta Öncelik)
-- [ ] Fatura/belge yükleme
-- [ ] Banka hesapları modülü
-- [ ] Kredi takibi modülü
-- [ ] Kullanıcı profil düzenleme
-
-### P3 (Düşük Öncelik)
-- [ ] Dark/Light tema geçişi
-- [ ] Mobil uygulama
-- [ ] API entegrasyonları (banka)
-
-## Sonraki Adımlar
-1. E-posta bildirimleri için SMTP yapılandırması
-2. Veri dışa aktarma özelliği (Excel raporları)
-3. Gelişmiş arama ve filtreleme
-
-## Teknik Notlar
-- Backend API prefix: `/api`
-- MongoDB koleksiyonları: users, companies, incomes, expenses, personnel, salaries, reminders
-- JWT token süresi: 24 saat
+## Backlog (P2)
+- [ ] server.py modularization (split routes into separate files)
+- [ ] Password change functionality for users
+- [ ] Export data to Excel/PDF
