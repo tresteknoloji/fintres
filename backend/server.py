@@ -1044,11 +1044,11 @@ async def delete_recurring_item(item_id: str, current_user: dict = Depends(get_c
 
 @api_router.get("/budget/summary")
 async def get_budget_summary(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    query = {"is_active": True}
+    query = {}
     if company_id:
         query["company_id"] = company_id
     
-    items = await db.recurring_items.find(query, {"_id": 0}).to_list(1000)
+    all_items = await db.recurring_items.find(query, {"_id": 0}).to_list(1000)
     
     monthly_income = 0
     monthly_expense = 0
@@ -1058,9 +1058,10 @@ async def get_budget_summary(company_id: Optional[str] = None, current_user: dic
     income_by_category = {}
     expense_by_category = {}
     
-    for item in items:
+    for item in all_items:
+        if not item.get("is_active", True):
+            continue
         amount = item["amount"]
-        # Convert yearly to monthly for comparison
         monthly_amount = amount if item["frequency"] == "monthly" else amount / 12
         yearly_amount = amount * 12 if item["frequency"] == "monthly" else amount
         
@@ -1084,7 +1085,7 @@ async def get_budget_summary(company_id: Optional[str] = None, current_user: dic
         "yearly_net": yearly_income - yearly_expense,
         "income_by_category": [{"name": k, "value": v} for k, v in income_by_category.items()],
         "expense_by_category": [{"name": k, "value": v} for k, v in expense_by_category.items()],
-        "items": items
+        "items": all_items
     }
 
 # ============ REMINDER ROUTES ============
