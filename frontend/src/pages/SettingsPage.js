@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { Switch } from "../components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { toast } from "sonner";
-import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User } from "lucide-react";
+import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User, Send, CheckCircle } from "lucide-react";
 import { formatDate } from "../lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -42,6 +43,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [sendingReminders, setSendingReminders] = useState(false);
+  
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -49,9 +53,23 @@ export default function SettingsPage() {
     role: "user"
   });
 
+  const [smtpForm, setSmtpForm] = useState({
+    smtp_host: "",
+    smtp_port: "587",
+    smtp_user: "",
+    smtp_password: "",
+    sender_name: "",
+    sender_email: "",
+    notify_email: "",
+    is_active: true
+  });
+
+  const [smtpLoaded, setSmtpLoaded] = useState(false);
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchUsers();
+      fetchSmtpSettings();
     } else {
       setLoading(false);
     }
@@ -68,6 +86,27 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchSmtpSettings = async () => {
+    try {
+      const response = await axios.get(`${API}/smtp`);
+      if (response.data) {
+        setSmtpForm({
+          smtp_host: response.data.smtp_host || "",
+          smtp_port: response.data.smtp_port?.toString() || "587",
+          smtp_user: response.data.smtp_user || "",
+          smtp_password: "",
+          sender_name: response.data.sender_name || "",
+          sender_email: response.data.sender_email || "",
+          notify_email: response.data.notify_email || "",
+          is_active: response.data.is_active ?? true
+        });
+        setSmtpLoaded(true);
+      }
+    } catch (error) {
+      console.error("Error fetching SMTP settings:", error);
+    }
+  };
+
   const resetForm = () => {
     setForm({ name: "", email: "", password: "", role: "user" });
   };
@@ -75,22 +114,22 @@ export default function SettingsPage() {
   const handleAddUser = async (e) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.password) {
-      toast.error("Lütfen tüm alanları doldurun");
+      toast.error("Lutfen tum alanlari doldurun");
       return;
     }
     if (form.password.length < 6) {
-      toast.error("Şifre en az 6 karakter olmalı");
+      toast.error("Sifre en az 6 karakter olmali");
       return;
     }
     setSaving(true);
     try {
       await axios.post(`${API}/auth/register`, form);
-      toast.success("Kullanıcı eklendi");
+      toast.success("Kullanici eklendi");
       setDialogOpen(false);
       resetForm();
       fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Kullanıcı eklenemedi");
+      toast.error(error.response?.data?.detail || "Kullanici eklenemedi");
     } finally {
       setSaving(false);
     }
@@ -101,13 +140,70 @@ export default function SettingsPage() {
       toast.error("Kendinizi silemezsiniz");
       return;
     }
-    if (!window.confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) return;
+    if (!window.confirm("Bu kullaniciyi silmek istediginize emin misiniz?")) return;
     try {
       await axios.delete(`${API}/users/${userId}`);
-      toast.success("Kullanıcı silindi");
+      toast.success("Kullanici silindi");
       fetchUsers();
     } catch (error) {
-      toast.error("Silme işlemi başarısız");
+      toast.error("Silme islemi basarisiz");
+    }
+  };
+
+  const handleSaveSmtp = async (e) => {
+    e.preventDefault();
+    if (!smtpForm.smtp_host || !smtpForm.smtp_user || !smtpForm.sender_name || !smtpForm.sender_email || !smtpForm.notify_email) {
+      toast.error("Lutfen zorunlu alanlari doldurun");
+      return;
+    }
+    if (!smtpLoaded && !smtpForm.smtp_password) {
+      toast.error("Sifre giriniz");
+      return;
+    }
+    setSaving(true);
+    try {
+      const data = {
+        ...smtpForm,
+        smtp_port: parseInt(smtpForm.smtp_port)
+      };
+      // Şifre boşsa ve daha önce kaydedilmişse, şifreyi göndermeden güncelle
+      if (!data.smtp_password && smtpLoaded) {
+        // Şifreyi yeniden girmesi gerekiyor
+        toast.error("SMTP sifresini tekrar giriniz");
+        setSaving(false);
+        return;
+      }
+      await axios.post(`${API}/smtp`, data);
+      toast.success("SMTP ayarlari kaydedildi");
+      setSmtpLoaded(true);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Kaydetme basarisiz");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    setTesting(true);
+    try {
+      const response = await axios.post(`${API}/smtp/test`);
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Test e-postasi gonderilemedi");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleSendReminders = async () => {
+    setSendingReminders(true);
+    try {
+      const response = await axios.post(`${API}/smtp/send-reminders`);
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Hatirlaticilar gonderilemedi");
+    } finally {
+      setSendingReminders(false);
     }
   };
 
@@ -124,16 +220,18 @@ export default function SettingsPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Ayarlar</h1>
-        <p className="text-muted-foreground mt-1">Hesap ve sistem ayarları</p>
+        <p className="text-muted-foreground mt-1">Hesap ve sistem ayarlari</p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList>
           <TabsTrigger value="profile" data-testid="tab-profile">Profil</TabsTrigger>
           {user?.role === "admin" && (
-            <TabsTrigger value="users" data-testid="tab-users">Kullanıcılar</TabsTrigger>
+            <>
+              <TabsTrigger value="users" data-testid="tab-users">Kullanicilar</TabsTrigger>
+              <TabsTrigger value="smtp" data-testid="tab-smtp">E-posta Ayarlari</TabsTrigger>
+            </>
           )}
-          <TabsTrigger value="smtp" data-testid="tab-smtp">E-posta Ayarları</TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -141,7 +239,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Profil Bilgileri</CardTitle>
-              <CardDescription>Hesap bilgilerinizi görüntüleyin</CardDescription>
+              <CardDescription>Hesap bilgilerinizi goruntuleyin</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -155,7 +253,7 @@ export default function SettingsPage() {
                   <p className="text-muted-foreground">{user?.email}</p>
                   <Badge variant="outline" className="mt-1">
                     <Shield className="w-3 h-3 mr-1" />
-                    {user?.role === "admin" ? "Yönetici" : "Kullanıcı"}
+                    {user?.role === "admin" ? "Yonetici" : "Kullanici"}
                   </Badge>
                 </div>
               </div>
@@ -171,10 +269,10 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Rol</Label>
-                  <Input value={user?.role === "admin" ? "Yönetici" : "Kullanıcı"} disabled />
+                  <Input value={user?.role === "admin" ? "Yonetici" : "Kullanici"} disabled />
                 </div>
                 <div className="space-y-2">
-                  <Label>Kayıt Tarihi</Label>
+                  <Label>Kayit Tarihi</Label>
                   <Input value={formatDate(user?.created_at)} disabled />
                 </div>
               </div>
@@ -190,9 +288,9 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Kullanıcı Yönetimi
+                    Kullanici Yonetimi
                   </CardTitle>
-                  <CardDescription>Sistemdeki tüm kullanıcıları yönetin</CardDescription>
+                  <CardDescription>Sistemdeki tum kullanicilari yonetin</CardDescription>
                 </div>
                 <Dialog open={dialogOpen} onOpenChange={(open) => {
                   setDialogOpen(open);
@@ -201,12 +299,12 @@ export default function SettingsPage() {
                   <DialogTrigger asChild>
                     <Button data-testid="add-user-btn">
                       <Plus className="w-4 h-4 mr-2" />
-                      Kullanıcı Ekle
+                      Kullanici Ekle
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Yeni Kullanıcı Ekle</DialogTitle>
+                      <DialogTitle>Yeni Kullanici Ekle</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleAddUser} className="space-y-4">
                       <div className="space-y-2">
@@ -237,12 +335,12 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Şifre * (min. 6 karakter)</Label>
+                        <Label>Sifre * (min. 6 karakter)</Label>
                         <Input
                           type="password"
                           value={form.password}
                           onChange={(e) => setForm({ ...form, password: e.target.value })}
-                          placeholder="••••••••"
+                          placeholder="********"
                           data-testid="new-user-password"
                         />
                       </div>
@@ -253,15 +351,15 @@ export default function SettingsPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="user">Kullanıcı</SelectItem>
-                            <SelectItem value="admin">Yönetici</SelectItem>
+                            <SelectItem value="user">Kullanici</SelectItem>
+                            <SelectItem value="admin">Yonetici</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>İptal</Button>
+                        <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Iptal</Button>
                         <Button type="submit" disabled={saving} data-testid="submit-new-user">
-                          {saving ? "Ekleniyor..." : "Kullanıcı Ekle"}
+                          {saving ? "Ekleniyor..." : "Kullanici Ekle"}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -270,7 +368,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent>
                 {users.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Henüz kullanıcı yok</p>
+                  <p className="text-center text-muted-foreground py-8">Henuz kullanici yok</p>
                 ) : (
                   <div className="data-table">
                     <Table>
@@ -279,8 +377,8 @@ export default function SettingsPage() {
                           <TableHead>Ad Soyad</TableHead>
                           <TableHead>E-posta</TableHead>
                           <TableHead>Rol</TableHead>
-                          <TableHead>Kayıt Tarihi</TableHead>
-                          <TableHead className="w-[80px]">İşlem</TableHead>
+                          <TableHead>Kayit Tarihi</TableHead>
+                          <TableHead className="w-[80px]">Islem</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -290,7 +388,7 @@ export default function SettingsPage() {
                             <TableCell>{u.email}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className={u.role === "admin" ? "badge-success" : ""}>
-                                {u.role === "admin" ? "Yönetici" : "Kullanıcı"}
+                                {u.role === "admin" ? "Yonetici" : "Kullanici"}
                               </Badge>
                             </TableCell>
                             <TableCell>{formatDate(u.created_at)}</TableCell>
@@ -318,57 +416,164 @@ export default function SettingsPage() {
         )}
 
         {/* SMTP Settings Tab */}
-        <TabsContent value="smtp">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                E-posta Bildirimleri (SMTP)
-              </CardTitle>
-              <CardDescription>
-                Ödeme hatırlatıcıları için e-posta bildirim ayarları. Bu özellik yakında aktif edilecek.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="smtp_host">SMTP Sunucu</Label>
-                  <Input id="smtp_host" placeholder="smtp.gmail.com" disabled data-testid="smtp-host" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="smtp_port">Port</Label>
-                  <Input id="smtp_port" placeholder="587" disabled data-testid="smtp-port" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="smtp_user">Kullanıcı Adı</Label>
-                  <Input id="smtp_user" placeholder="your-email@gmail.com" disabled data-testid="smtp-user" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="smtp_pass">Şifre</Label>
-                  <Input id="smtp_pass" type="password" placeholder="••••••••" disabled data-testid="smtp-pass" />
-                </div>
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-4 border border-border">
-                <div className="flex items-start gap-3">
-                  <SettingsIcon className="w-5 h-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <h4 className="font-medium">SMTP Yapılandırması</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      E-posta bildirimleri için SMTP ayarlarını yapılandırabilirsiniz. 
-                      Gmail kullanıyorsanız, "Uygulama Şifresi" oluşturmanız gerekebilir.
-                      Bu özellik bir sonraki güncellemede aktif edilecektir.
-                    </p>
+        {user?.role === "admin" && (
+          <TabsContent value="smtp">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  E-posta Bildirimleri (SMTP)
+                </CardTitle>
+                <CardDescription>
+                  Odeme hatirlaticilari icin e-posta bildirim ayarlari
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveSmtp} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="smtp_host">SMTP Sunucu *</Label>
+                      <Input
+                        id="smtp_host"
+                        value={smtpForm.smtp_host}
+                        onChange={(e) => setSmtpForm({ ...smtpForm, smtp_host: e.target.value })}
+                        placeholder="smtp.gmail.com"
+                        data-testid="smtp-host"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="smtp_port">Port</Label>
+                      <Input
+                        id="smtp_port"
+                        value={smtpForm.smtp_port}
+                        onChange={(e) => setSmtpForm({ ...smtpForm, smtp_port: e.target.value })}
+                        placeholder="587"
+                        data-testid="smtp-port"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="smtp_user">SMTP Kullanici Adi *</Label>
+                      <Input
+                        id="smtp_user"
+                        value={smtpForm.smtp_user}
+                        onChange={(e) => setSmtpForm({ ...smtpForm, smtp_user: e.target.value })}
+                        placeholder="your-email@gmail.com"
+                        data-testid="smtp-user"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="smtp_pass">SMTP Sifre *</Label>
+                      <Input
+                        id="smtp_pass"
+                        type="password"
+                        value={smtpForm.smtp_password}
+                        onChange={(e) => setSmtpForm({ ...smtpForm, smtp_password: e.target.value })}
+                        placeholder={smtpLoaded ? "********" : "Sifre giriniz"}
+                        data-testid="smtp-pass"
+                      />
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <Button disabled data-testid="smtp-save">
-                Ayarları Kaydet (Yakında)
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium mb-4">Gonderici Bilgileri</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="sender_name">Gonderici Adi * (E-postalarda gorunecek)</Label>
+                        <Input
+                          id="sender_name"
+                          value={smtpForm.sender_name}
+                          onChange={(e) => setSmtpForm({ ...smtpForm, sender_name: e.target.value })}
+                          placeholder="FinTres Pro"
+                          data-testid="sender-name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="sender_email">Gonderici E-posta *</Label>
+                        <Input
+                          id="sender_email"
+                          type="email"
+                          value={smtpForm.sender_email}
+                          onChange={(e) => setSmtpForm({ ...smtpForm, sender_email: e.target.value })}
+                          placeholder="bildirim@sirket.com"
+                          data-testid="sender-email"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h4 className="font-medium mb-4">Bildirim Ayarlari</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="notify_email">Bildirimlerin Gidecegi E-posta *</Label>
+                        <Input
+                          id="notify_email"
+                          type="email"
+                          value={smtpForm.notify_email}
+                          onChange={(e) => setSmtpForm({ ...smtpForm, notify_email: e.target.value })}
+                          placeholder="admin@sirket.com"
+                          data-testid="notify-email"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>E-posta Bildirimleri</Label>
+                        <div className="flex items-center gap-3 mt-2">
+                          <Switch
+                            checked={smtpForm.is_active}
+                            onCheckedChange={(v) => setSmtpForm({ ...smtpForm, is_active: v })}
+                            data-testid="smtp-active"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {smtpForm.is_active ? "Aktif" : "Pasif"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                    <div className="flex items-start gap-3">
+                      <SettingsIcon className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <h4 className="font-medium">Gmail Kullaniyorsaniz</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Gmail hesabinizda 2 Adimli Dogrulama aktif olmali ve 
+                          "Uygulama Sifresi" olusturmaniz gerekir. Normal sifrenizi kullanamazsiniz.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="submit" disabled={saving} data-testid="smtp-save">
+                      {saving ? "Kaydediliyor..." : "Ayarlari Kaydet"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleTestSmtp}
+                      disabled={testing || !smtpLoaded}
+                      data-testid="smtp-test"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      {testing ? "Gonderiliyor..." : "Test E-postasi Gonder"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendReminders}
+                      disabled={sendingReminders || !smtpLoaded}
+                      data-testid="send-reminders"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {sendingReminders ? "Gonderiliyor..." : "Hatirlaticilari Gonder"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

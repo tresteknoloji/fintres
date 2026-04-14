@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -12,6 +12,9 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -22,11 +25,11 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # JWT Settings
-JWT_SECRET = os.environ.get('JWT_SECRET', 'fintrack-secret-key-2024')
+JWT_SECRET = os.environ.get('JWT_SECRET', 'fintres-secret-key-2024')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
-app = FastAPI(title="FinTrack Pro API")
+app = FastAPI(title="FinTres Pro API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
@@ -236,6 +239,30 @@ class ReminderResponse(BaseModel):
     is_paid: bool
     created_at: str
 
+# ============ SMTP SETTINGS MODEL ============
+
+class SMTPSettingsCreate(BaseModel):
+    smtp_host: str
+    smtp_port: int = 587
+    smtp_user: str
+    smtp_password: str
+    sender_name: str
+    sender_email: str
+    notify_email: str  # Bildirimlerin gideceği e-posta
+    is_active: bool = True
+
+class SMTPSettingsResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    sender_name: str
+    sender_email: str
+    notify_email: str
+    is_active: bool
+    updated_at: str
+
 # ============ AUTH HELPERS ============
 
 def hash_password(password: str) -> str:
@@ -264,6 +291,150 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Token süresi dolmuş")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Geçersiz token")
+
+# ============ EMAIL FUNCTIONS ============
+
+def format_currency(amount, currency="TRY"):
+    symbols = {"TRY": "₺", "USD": "$", "EUR": "€"}
+    symbol = symbols.get(currency, currency)
+    formatted = f"{amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{symbol} {formatted}"
+
+def get_email_template(title: str, content: str, footer_text: str = ""):
+    return f'''<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f7;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 40px 0;">
+                <table role="presentation" style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 32px 40px; background-color: #1e293b; border-radius: 8px 8px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">FinTres Pro</h1>
+                            <p style="margin: 8px 0 0 0; color: #94a3b8; font-size: 14px;">Finans Yonetim Sistemi</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h2 style="margin: 0 0 24px 0; color: #1e293b; font-size: 20px; font-weight: 600;">{title}</h2>
+                            {content}
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px 40px; background-color: #f8fafc; border-radius: 0 0 8px 8px; border-top: 1px solid #e2e8f0;">
+                            <p style="margin: 0; color: #64748b; font-size: 12px; text-align: center;">
+                                {footer_text if footer_text else "Bu e-posta FinTres Pro tarafindan otomatik olarak gonderilmistir."}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>'''
+
+def get_reminder_email_content(reminders: list, companies: dict):
+    rows = ""
+    for r in reminders:
+        company_name = companies.get(r["company_id"], "Bilinmeyen Firma")
+        due_date = r["due_date"][:10] if r.get("due_date") else "-"
+        amount = format_currency(r["amount"], r.get("currency", "TRY"))
+        
+        rows += f'''
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{r["title"]}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">{company_name}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{due_date}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #dc2626; font-size: 14px; font-weight: 600; text-align: right;">{amount}</td>
+        </tr>'''
+    
+    content = f'''
+    <p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+        Asagida yaklasmakta olan veya vadesi gecmis odeme hatirlaticilariniz listelenmistir.
+    </p>
+    <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+        <thead>
+            <tr style="background-color: #f8fafc;">
+                <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Odeme</th>
+                <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Firma</th>
+                <th style="padding: 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Vade Tarihi</th>
+                <th style="padding: 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Tutar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {rows}
+        </tbody>
+    </table>
+    <p style="margin: 0; color: #64748b; font-size: 13px;">
+        Lutfen odemelerin zamaninda yapildigindan emin olun.
+    </p>'''
+    
+    return content
+
+async def send_email(to_email: str, subject: str, html_content: str):
+    """SMTP ayarlarını kullanarak e-posta gönder"""
+    settings = await db.smtp_settings.find_one({"is_active": True}, {"_id": 0})
+    if not settings:
+        logger.warning("SMTP ayarları bulunamadı veya aktif değil")
+        return False
+    
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{settings['sender_name']} <{settings['sender_email']}>"
+        msg['To'] = to_email
+        
+        html_part = MIMEText(html_content, 'html', 'utf-8')
+        msg.attach(html_part)
+        
+        with smtplib.SMTP(settings['smtp_host'], settings['smtp_port']) as server:
+            server.starttls()
+            server.login(settings['smtp_user'], settings['smtp_password'])
+            server.sendmail(settings['sender_email'], to_email, msg.as_string())
+        
+        logger.info(f"E-posta gönderildi: {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"E-posta gönderme hatası: {str(e)}")
+        return False
+
+async def send_reminder_notifications():
+    """Yaklaşan ödemeleri e-posta ile bildir"""
+    settings = await db.smtp_settings.find_one({"is_active": True}, {"_id": 0})
+    if not settings:
+        return
+    
+    # Önümüzdeki 7 gün içindeki ve gecikmiş ödemeleri al
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    week_later = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+    
+    reminders = await db.reminders.find({
+        "is_paid": False,
+        "due_date": {"$lte": week_later}
+    }, {"_id": 0}).to_list(100)
+    
+    if not reminders:
+        return
+    
+    # Firma isimlerini al
+    company_ids = list(set(r["company_id"] for r in reminders))
+    companies_list = await db.companies.find({"id": {"$in": company_ids}}, {"_id": 0}).to_list(100)
+    companies = {c["id"]: c["name"] for c in companies_list}
+    
+    # E-posta içeriği oluştur
+    content = get_reminder_email_content(reminders, companies)
+    html = get_email_template("Odeme Hatirlaticisi", content)
+    
+    await send_email(settings['notify_email'], f"FinTres Pro - {len(reminders)} Bekleyen Odeme", html)
 
 # ============ AUTH ROUTES ============
 
@@ -692,6 +863,70 @@ async def delete_reminder(reminder_id: str, current_user: dict = Depends(get_cur
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Hatırlatıcı bulunamadı")
     return {"message": "Hatırlatıcı silindi"}
+
+# ============ SMTP SETTINGS ROUTES ============
+
+@api_router.post("/smtp", response_model=SMTPSettingsResponse)
+async def save_smtp_settings(settings: SMTPSettingsCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin SMTP ayarlarını değiştirebilir")
+    
+    # Mevcut ayarları sil ve yenisini ekle
+    await db.smtp_settings.delete_many({})
+    
+    settings_doc = {
+        "id": str(uuid.uuid4()),
+        **settings.model_dump(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.smtp_settings.insert_one(settings_doc)
+    
+    # Şifreyi response'dan çıkar
+    response_doc = {k: v for k, v in settings_doc.items() if k not in ["_id", "smtp_password"]}
+    return SMTPSettingsResponse(**response_doc)
+
+@api_router.get("/smtp", response_model=Optional[SMTPSettingsResponse])
+async def get_smtp_settings(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin SMTP ayarlarını görüntüleyebilir")
+    
+    settings = await db.smtp_settings.find_one({}, {"_id": 0, "smtp_password": 0})
+    if not settings:
+        return None
+    return SMTPSettingsResponse(**settings)
+
+@api_router.post("/smtp/test")
+async def test_smtp_settings(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin test e-postası gönderebilir")
+    
+    settings = await db.smtp_settings.find_one({"is_active": True}, {"_id": 0})
+    if not settings:
+        raise HTTPException(status_code=400, detail="SMTP ayarları bulunamadı veya aktif değil")
+    
+    content = '''
+    <p style="margin: 0 0 16px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+        Bu bir test e-postasidir. SMTP ayarlariniz basariyla yapilandirilmistir.
+    </p>
+    <p style="margin: 0; color: #64748b; font-size: 14px;">
+        Artik odeme hatirlaticilari bu e-posta adresine gonderilecektir.
+    </p>
+    '''
+    html = get_email_template("SMTP Test", content)
+    
+    success = await send_email(settings['notify_email'], "FinTres Pro - SMTP Test", html)
+    if not success:
+        raise HTTPException(status_code=500, detail="E-posta gönderilemedi. SMTP ayarlarını kontrol edin.")
+    
+    return {"message": f"Test e-postası {settings['notify_email']} adresine gönderildi"}
+
+@api_router.post("/smtp/send-reminders")
+async def trigger_reminder_emails(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin hatırlatıcı e-postası gönderebilir")
+    
+    background_tasks.add_task(send_reminder_notifications)
+    return {"message": "Hatırlatıcı e-postaları gönderiliyor"}
 
 # ============ REPORTS / DASHBOARD ============
 
