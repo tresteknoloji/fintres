@@ -273,12 +273,16 @@ async def register(user: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Bu e-posta zaten kayıtlı")
     
+    # İlk kullanıcı otomatik admin olsun
+    user_count = await db.users.count_documents({})
+    role = "admin" if user_count == 0 else user.role
+    
     user_doc = {
         "id": str(uuid.uuid4()),
         "email": user.email,
         "password": hash_password(user.password),
         "name": user.name,
-        "role": user.role,
+        "role": role,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_doc)
