@@ -32,7 +32,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { toast } from "sonner";
-import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User, Send, CheckCircle } from "lucide-react";
+import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User, Send, CheckCircle, Clock, Bell, Calendar } from "lucide-react";
 import { formatDate } from "../lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -66,10 +66,20 @@ export default function SettingsPage() {
 
   const [smtpLoaded, setSmtpLoaded] = useState(false);
 
+  const [reminderForm, setReminderForm] = useState({
+    days_before: 7,
+    send_on_due_date: true,
+    is_scheduler_active: true
+  });
+  const [schedulerStatus, setSchedulerStatus] = useState(null);
+  const [savingReminder, setSavingReminder] = useState(false);
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchUsers();
       fetchSmtpSettings();
+      fetchReminderSettings();
+      fetchSchedulerStatus();
     } else {
       setLoading(false);
     }
@@ -104,6 +114,44 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error("Error fetching SMTP settings:", error);
+    }
+  };
+
+  const fetchReminderSettings = async () => {
+    try {
+      const response = await axios.get(`${API}/settings/reminders`);
+      if (response.data) {
+        setReminderForm({
+          days_before: response.data.days_before ?? 7,
+          send_on_due_date: response.data.send_on_due_date ?? true,
+          is_scheduler_active: response.data.is_scheduler_active ?? true
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching reminder settings:", error);
+    }
+  };
+
+  const fetchSchedulerStatus = async () => {
+    try {
+      const response = await axios.get(`${API}/settings/scheduler-status`);
+      setSchedulerStatus(response.data);
+    } catch (error) {
+      console.error("Error fetching scheduler status:", error);
+    }
+  };
+
+  const handleSaveReminderSettings = async (e) => {
+    e.preventDefault();
+    setSavingReminder(true);
+    try {
+      await axios.post(`${API}/settings/reminders`, reminderForm);
+      toast.success("Hatirlatma ayarlari kaydedildi");
+      fetchSchedulerStatus();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Kaydetme basarisiz");
+    } finally {
+      setSavingReminder(false);
     }
   };
 
@@ -230,6 +278,7 @@ export default function SettingsPage() {
             <>
               <TabsTrigger value="users" data-testid="tab-users">Kullanicilar</TabsTrigger>
               <TabsTrigger value="smtp" data-testid="tab-smtp">E-posta Ayarlari</TabsTrigger>
+              <TabsTrigger value="reminders" data-testid="tab-reminders">Hatirlatma Ayarlari</TabsTrigger>
             </>
           )}
         </TabsList>
@@ -558,20 +607,157 @@ export default function SettingsPage() {
                       <Send className="w-4 h-4 mr-2" />
                       {testing ? "Gonderiliyor..." : "Test E-postasi Gonder"}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleSendReminders}
-                      disabled={sendingReminders || !smtpLoaded}
-                      data-testid="send-reminders"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {sendingReminders ? "Gonderiliyor..." : "Hatirlaticilari Gonder"}
-                    </Button>
                   </div>
                 </form>
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+
+        {/* Reminder Settings Tab */}
+        {user?.role === "admin" && (
+          <TabsContent value="reminders">
+            <div className="space-y-6">
+              {/* Scheduler Status Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    Zamanlayici Durumu
+                  </CardTitle>
+                  <CardDescription>
+                    Otomatik hatirlatma e-postalari her gun saat 08:00'da (UTC+3 Turkiye) gonderilir
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                      <p className="text-sm text-muted-foreground">Durum</p>
+                      <p className="text-lg font-semibold mt-1">
+                        {schedulerStatus?.has_job ? (
+                          <span className="text-green-500">Aktif</span>
+                        ) : (
+                          <span className="text-muted-foreground">Pasif</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                      <p className="text-sm text-muted-foreground">Gonderim Saati</p>
+                      <p className="text-lg font-semibold mt-1">08:00 (TR)</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                      <p className="text-sm text-muted-foreground">Sonraki Calisma</p>
+                      <p className="text-lg font-semibold mt-1">
+                        {schedulerStatus?.next_run || "-"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Reminder Config Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="w-5 h-5" />
+                    Hatirlatma Kurallari
+                  </CardTitle>
+                  <CardDescription>
+                    Odeme hatirlaticilerinin ne zaman gonderilecegini yapilandirin
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSaveReminderSettings} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="days_before">
+                          <Calendar className="w-4 h-4 inline mr-1" />
+                          Kac gun once hatirlatsin?
+                        </Label>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            id="days_before"
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={reminderForm.days_before}
+                            onChange={(e) => setReminderForm({ ...reminderForm, days_before: parseInt(e.target.value) || 7 })}
+                            className="w-24"
+                            data-testid="days-before"
+                          />
+                          <span className="text-sm text-muted-foreground">gun once</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Odeme vadesinden belirtilen gun sayisi kadar once hatirlatma e-postasi gonderilir
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Vade gununde hatirlatma</Label>
+                        <div className="flex items-center gap-3 mt-2">
+                          <Switch
+                            checked={reminderForm.send_on_due_date}
+                            onCheckedChange={(v) => setReminderForm({ ...reminderForm, send_on_due_date: v })}
+                            data-testid="send-on-due-date"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {reminderForm.send_on_due_date ? "Aktif - Vade gununde de e-posta gonderilir" : "Pasif"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <Label>Otomatik Zamanlayici</Label>
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={reminderForm.is_scheduler_active}
+                              onCheckedChange={(v) => setReminderForm({ ...reminderForm, is_scheduler_active: v })}
+                              data-testid="scheduler-active"
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {reminderForm.is_scheduler_active ? "Aktif - Her gun 08:00'da (Turkiye) otomatik kontrol" : "Pasif - Manuel gonderim"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                      <div className="flex items-start gap-3">
+                        <SettingsIcon className="w-5 h-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <h4 className="font-medium">Nasil Calisir?</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Sistem her gun sabah 08:00'da (UTC+3) otomatik olarak odeme hatirlaticilerinizi kontrol eder.
+                            Vadesi {reminderForm.days_before} gun icinde olan, bugun vadesi dolan ve vadesi gecmis odemeler
+                            icin e-posta bildirimi gonderir.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <Button type="submit" disabled={savingReminder} data-testid="save-reminder-settings">
+                        {savingReminder ? "Kaydediliyor..." : "Ayarlari Kaydet"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSendReminders}
+                        disabled={sendingReminders || !smtpLoaded}
+                        data-testid="send-reminders-manual"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {sendingReminders ? "Gonderiliyor..." : "Simdi Manuel Gonder"}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         )}
       </Tabs>

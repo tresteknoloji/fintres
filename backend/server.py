@@ -15,6 +15,9 @@ import jwt
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import asyncio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -263,6 +266,21 @@ class SMTPSettingsResponse(BaseModel):
     is_active: bool
     updated_at: str
 
+# ============ REMINDER SETTINGS MODEL ============
+
+class ReminderSettingsCreate(BaseModel):
+    days_before: int = 7
+    send_on_due_date: bool = True
+    is_scheduler_active: bool = True
+
+class ReminderSettingsResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    days_before: int
+    send_on_due_date: bool
+    is_scheduler_active: bool
+    updated_at: str
+
 # ============ AUTH HELPERS ============
 
 def hash_password(password: str) -> str:
@@ -380,6 +398,63 @@ def get_reminder_email_content(reminders: list, companies: dict):
     
     return content
 
+def _build_reminder_table(reminders: list, companies: dict, header_color: str, header_bg: str):
+    if not reminders:
+        return ""
+    rows = ""
+    for r in reminders:
+        company_name = companies.get(r["company_id"], "Bilinmeyen Firma")
+        due_date = r["due_date"][:10] if r.get("due_date") else "-"
+        amount = format_currency(r["amount"], r.get("currency", "TRY"))
+        rows += f'''
+        <tr>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{r["title"]}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">{company_name}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px;">{due_date}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: {header_color}; font-size: 14px; font-weight: 600; text-align: right;">{amount}</td>
+        </tr>'''
+    return f'''
+    <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+        <thead>
+            <tr style="background-color: {header_bg};">
+                <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Odeme</th>
+                <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Firma</th>
+                <th style="padding: 10px 12px; text-align: left; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Vade Tarihi</th>
+                <th style="padding: 10px 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; border-bottom: 2px solid #e2e8f0;">Tutar</th>
+            </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>'''
+
+def get_reminder_email_content_grouped(today: list, overdue: list, upcoming: list, companies: dict):
+    content = '''<p style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.6;">
+        Asagida odeme hatirlaticilariniz listelenmistir.
+    </p>'''
+    
+    if overdue:
+        content += f'''<h3 style="margin: 0 0 12px 0; color: #dc2626; font-size: 16px; font-weight: 600; border-left: 4px solid #dc2626; padding-left: 12px;">
+            Vadesi Gecmis ({len(overdue)} odeme)
+        </h3>'''
+        content += _build_reminder_table(overdue, companies, "#dc2626", "#fef2f2")
+    
+    if today:
+        content += f'''<h3 style="margin: 0 0 12px 0; color: #ea580c; font-size: 16px; font-weight: 600; border-left: 4px solid #ea580c; padding-left: 12px;">
+            Bugun Vadesi Dolan ({len(today)} odeme)
+        </h3>'''
+        content += _build_reminder_table(today, companies, "#ea580c", "#fff7ed")
+    
+    if upcoming:
+        content += f'''<h3 style="margin: 0 0 12px 0; color: #2563eb; font-size: 16px; font-weight: 600; border-left: 4px solid #2563eb; padding-left: 12px;">
+            Yaklasan Odemeler ({len(upcoming)} odeme)
+        </h3>'''
+        content += _build_reminder_table(upcoming, companies, "#2563eb", "#eff6ff")
+    
+    content += '''<p style="margin: 16px 0 0 0; color: #64748b; font-size: 13px;">
+        Lutfen odemelerin zamaninda yapildigindan emin olun.
+    </p>'''
+    
+    return content
+
 async def send_email(to_email: str, subject: str, html_content: str):
     """SMTP ayarlarını kullanarak e-posta gönder"""
     settings = await db.smtp_settings.find_one({"is_active": True}, {"_id": 0})
@@ -413,17 +488,29 @@ async def send_reminder_notifications():
     if not settings:
         return
     
-    # Önümüzdeki 7 gün içindeki ve gecikmiş ödemeleri al
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    week_later = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+    # Hatırlatma ayarlarını al
+    reminder_config = await db.reminder_settings.find_one({}, {"_id": 0})
+    days_before = reminder_config.get("days_before", 7) if reminder_config else 7
+    send_on_due_date = reminder_config.get("send_on_due_date", True) if reminder_config else True
     
+    # UTC+3 (Turkiye saati) ile bugunu hesapla
+    tr_now = datetime.now(timezone.utc) + timedelta(hours=3)
+    today = tr_now.strftime("%Y-%m-%d")
+    future_date = (tr_now + timedelta(days=days_before)).strftime("%Y-%m-%d")
+    
+    # Yaklaşan ödemeleri al (days_before gün içindeki + gecikmiş)
     reminders = await db.reminders.find({
         "is_paid": False,
-        "due_date": {"$lte": week_later}
+        "due_date": {"$lte": future_date}
     }, {"_id": 0}).to_list(100)
     
     if not reminders:
         return
+    
+    # Bugünkü ve yaklaşan olarak grupla
+    today_reminders = [r for r in reminders if r.get("due_date", "")[:10] == today]
+    overdue_reminders = [r for r in reminders if r.get("due_date", "")[:10] < today]
+    upcoming_reminders = [r for r in reminders if r.get("due_date", "")[:10] > today]
     
     # Firma isimlerini al
     company_ids = list(set(r["company_id"] for r in reminders))
@@ -431,10 +518,20 @@ async def send_reminder_notifications():
     companies = {c["id"]: c["name"] for c in companies_list}
     
     # E-posta içeriği oluştur
-    content = get_reminder_email_content(reminders, companies)
+    content = get_reminder_email_content_grouped(today_reminders, overdue_reminders, upcoming_reminders, companies)
     html = get_email_template("Odeme Hatirlaticisi", content)
     
-    await send_email(settings['notify_email'], f"FinTres Pro - {len(reminders)} Bekleyen Odeme", html)
+    subject_parts = []
+    if overdue_reminders:
+        subject_parts.append(f"{len(overdue_reminders)} Gecikmi{'s' if len(overdue_reminders) > 1 else 's'}")
+    if today_reminders:
+        subject_parts.append(f"{len(today_reminders)} Bugunki")
+    if upcoming_reminders:
+        subject_parts.append(f"{len(upcoming_reminders)} Yaklasan")
+    
+    subject = f"FinTres Pro - {', '.join(subject_parts)} Odeme"
+    
+    await send_email(settings['notify_email'], subject, html)
 
 # ============ AUTH ROUTES ============
 
@@ -928,6 +1025,64 @@ async def trigger_reminder_emails(background_tasks: BackgroundTasks, current_use
     background_tasks.add_task(send_reminder_notifications)
     return {"message": "Hatırlatıcı e-postaları gönderiliyor"}
 
+# ============ REMINDER SETTINGS ROUTES ============
+
+@api_router.get("/settings/reminders")
+async def get_reminder_settings(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Yetkiniz yok")
+    
+    settings = await db.reminder_settings.find_one({}, {"_id": 0})
+    if not settings:
+        return {
+            "id": "",
+            "days_before": 7,
+            "send_on_due_date": True,
+            "is_scheduler_active": True,
+            "updated_at": ""
+        }
+    return settings
+
+@api_router.post("/settings/reminders")
+async def save_reminder_settings(settings: ReminderSettingsCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin hatırlatma ayarlarını değiştirebilir")
+    
+    await db.reminder_settings.delete_many({})
+    
+    settings_doc = {
+        "id": str(uuid.uuid4()),
+        **settings.model_dump(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.reminder_settings.insert_one(settings_doc)
+    
+    # Zamanlayıcıyı güncelle
+    update_scheduler(settings.is_scheduler_active)
+    
+    response = {k: v for k, v in settings_doc.items() if k != "_id"}
+    return response
+
+@api_router.get("/settings/scheduler-status")
+async def get_scheduler_status(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Yetkiniz yok")
+    
+    job = scheduler.get_job("daily_reminder")
+    is_running = scheduler.running
+    next_run = None
+    if job and job.next_run_time:
+        # UTC+3'e çevir
+        next_run_utc3 = job.next_run_time + timedelta(hours=3)
+        next_run = next_run_utc3.strftime("%Y-%m-%d %H:%M")
+    
+    return {
+        "is_running": is_running,
+        "has_job": job is not None,
+        "next_run": next_run,
+        "send_time": "08:00 (UTC+3 Turkiye)"
+    }
+
 # ============ REPORTS / DASHBOARD ============
 
 @api_router.get("/dashboard/stats")
@@ -996,9 +1151,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ============ SCHEDULER SETUP ============
+
+scheduler = AsyncIOScheduler()
+
+def update_scheduler(is_active: bool):
+    """Zamanlayıcıyı güncelle"""
+    existing_job = scheduler.get_job("daily_reminder")
+    if is_active:
+        if not existing_job:
+            scheduler.add_job(
+                run_reminder_job,
+                CronTrigger(hour=5, minute=0),  # UTC 05:00 = UTC+3 08:00
+                id="daily_reminder",
+                replace_existing=True
+            )
+            logger.info("Hatirlatici zamanlayicisi eklendi: Her gun 08:00 (UTC+3)")
+    else:
+        if existing_job:
+            scheduler.remove_job("daily_reminder")
+            logger.info("Hatirlatici zamanlayicisi durduruldu")
+
+async def run_reminder_job():
+    """Zamanlayıcı tarafından çağrılan iş"""
+    logger.info("Otomatik hatirlatici e-posta kontrolu baslatildi...")
+    try:
+        await send_reminder_notifications()
+        logger.info("Hatirlatici e-postalari gonderildi")
+    except Exception as e:
+        logger.error(f"Hatirlatici gonderme hatasi: {str(e)}")
+
 @app.on_event("startup")
-async def create_default_admin():
-    """Uygulama başlatıldığında varsayılan admin oluştur"""
+async def startup_event():
+    """Uygulama başlatıldığında admin oluştur ve zamanlayıcıyı başlat"""
     admin_email = os.environ.get('ADMIN_EMAIL', 'admin@fintrack.com')
     admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin123!')
     admin_name = os.environ.get('ADMIN_NAME', 'Admin')
@@ -1014,10 +1199,22 @@ async def create_default_admin():
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.users.insert_one(admin_doc)
-        logger.info(f"Varsayılan admin oluşturuldu: {admin_email}")
+        logger.info(f"Varsayilan admin olusturuldu: {admin_email}")
     else:
         logger.info(f"Admin zaten mevcut: {admin_email}")
+    
+    # Zamanlayıcıyı başlat
+    reminder_config = await db.reminder_settings.find_one({}, {"_id": 0})
+    is_active = reminder_config.get("is_scheduler_active", True) if reminder_config else True
+    
+    if not scheduler.running:
+        scheduler.start()
+        logger.info("APScheduler baslatildi")
+    
+    update_scheduler(is_active)
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
+async def shutdown_event():
+    if scheduler.running:
+        scheduler.shutdown()
     client.close()
