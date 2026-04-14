@@ -78,6 +78,8 @@ const EXPENSE_CATEGORIES = [
   { value: "yemek", label: "Yemek/İaşe", icon: Utensils },
   { value: "sigorta", label: "Sigorta", icon: Receipt },
   { value: "vergi", label: "Vergi", icon: Receipt },
+  { value: "reklam", label: "Reklam & Pazarlama", icon: Receipt },
+  { value: "veri_merkezi", label: "Veri Merkezi", icon: Building },
   { value: "diger", label: "Diğer", icon: Receipt }
 ];
 
