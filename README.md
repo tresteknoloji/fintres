@@ -14,12 +14,12 @@
 sudo apt update && sudo apt upgrade -y
 ```
 
-## 2. Node.js 18+ Kurulumu
+## 2. Node.js 20 Kurulumu
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
-node -v  # v18.x olmalı
+node -v  # v20.x olmalı
 ```
 
 ## 3. Yarn Kurulumu
