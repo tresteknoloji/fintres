@@ -276,7 +276,7 @@ export default function BudgetPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold currency text-green-500">
+            <div className="text-xl sm:text-2xl font-bold currency text-green-500 truncate">
               {formatCurrency(summary?.monthly_income || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -293,7 +293,7 @@ export default function BudgetPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold currency text-red-500">
+            <div className="text-xl sm:text-2xl font-bold currency text-red-500 truncate">
               {formatCurrency(summary?.monthly_expense || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -310,7 +310,7 @@ export default function BudgetPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold currency ${isProfit ? "text-green-500" : "text-red-500"}`}>
+            <div className={`text-xl sm:text-2xl font-bold currency truncate ${isProfit ? "text-green-500" : "text-red-500"}`}>
               {formatCurrency(summary?.monthly_net || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -365,7 +365,7 @@ export default function BudgetPage() {
                       <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `₺${(v / 1000).toFixed(0)}K`} />
                       <Tooltip
                         contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                        formatter={(value) => [formatCurrency(value), ""]}
+                        formatter={(value, name) => [formatCurrency(value), name]}
                       />
                       <Legend />
                       <Bar dataKey="gelir" name="Gelir" fill="#22c55e" radius={[4, 4, 0, 0]} />
