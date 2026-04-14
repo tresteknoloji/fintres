@@ -41,16 +41,6 @@ export function AuthProvider({ children }) {
     return userData;
   };
 
-  const register = async (email, password, name, role = "user") => {
-    const response = await axios.post(`${API}/auth/register`, { email, password, name, role });
-    const { token: newToken, user: userData } = response.data;
-    localStorage.setItem("token", newToken);
-    axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
-    setToken(newToken);
-    setUser(userData);
-    return userData;
-  };
-
   const logout = () => {
     localStorage.removeItem("token");
     delete axios.defaults.headers.common["Authorization"];
@@ -59,7 +49,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

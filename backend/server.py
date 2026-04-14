@@ -268,28 +268,27 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 # ============ AUTH ROUTES ============
 
 @api_router.post("/auth/register", response_model=dict)
-async def register(user: UserCreate):
+async def register(user: UserCreate, current_user: dict = Depends(get_current_user)):
+    """Sadece admin yeni kullanıcı ekleyebilir"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin kullanıcı ekleyebilir")
+    
     existing = await db.users.find_one({"email": user.email})
     if existing:
         raise HTTPException(status_code=400, detail="Bu e-posta zaten kayıtlı")
-    
-    # İlk kullanıcı otomatik admin olsun
-    user_count = await db.users.count_documents({})
-    role = "admin" if user_count == 0 else user.role
     
     user_doc = {
         "id": str(uuid.uuid4()),
         "email": user.email,
         "password": hash_password(user.password),
         "name": user.name,
-        "role": role,
+        "role": user.role,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_doc)
     
-    token = create_token(user_doc["id"], user_doc["email"], user_doc["role"])
     return {
-        "token": token,
+        "message": "Kullanıcı oluşturuldu",
         "user": {
             "id": user_doc["id"],
             "email": user_doc["email"],
@@ -761,6 +760,28 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def create_default_admin():
+    """Uygulama başlatıldığında varsayılan admin oluştur"""
+    admin_email = os.environ.get('ADMIN_EMAIL', 'admin@fintrack.com')
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin123!')
+    admin_name = os.environ.get('ADMIN_NAME', 'Admin')
+    
+    existing = await db.users.find_one({"email": admin_email})
+    if not existing:
+        admin_doc = {
+            "id": str(uuid.uuid4()),
+            "email": admin_email,
+            "password": hash_password(admin_password),
+            "name": admin_name,
+            "role": "admin",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(admin_doc)
+        logger.info(f"Varsayılan admin oluşturuldu: {admin_email}")
+    else:
+        logger.info(f"Admin zaten mevcut: {admin_email}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
