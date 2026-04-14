@@ -469,7 +469,7 @@ def get_reminder_email_content_grouped(today: list, overdue: list, upcoming: lis
     return content
 
 async def send_email(to_email: str, subject: str, html_content: str):
-    """SMTP ayarlarını kullanarak e-posta gönder"""
+    """SMTP ayarlarını kullanarak e-posta gönder (background-safe)"""
     settings = await db.smtp_settings.find_one({"is_active": True}, {"_id": 0})
     if not settings:
         logger.warning("SMTP ayarları bulunamadı veya aktif değil")
@@ -484,16 +484,22 @@ async def send_email(to_email: str, subject: str, html_content: str):
         html_part = MIMEText(html_content, 'html', 'utf-8')
         msg.attach(html_part)
         
-        with smtplib.SMTP(settings['smtp_host'], settings['smtp_port']) as server:
-            server.starttls()
-            server.login(settings['smtp_user'], settings['smtp_password'])
-            server.sendmail(settings['sender_email'], to_email, msg.as_string())
+        # Senkron SMTP işlemini thread pool'da çalıştır (ana event loop'u bloklamaz)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _send_smtp, settings, to_email, msg)
         
         logger.info(f"E-posta gönderildi: {to_email}")
         return True
     except Exception as e:
         logger.error(f"E-posta gönderme hatası: {str(e)}")
         return False
+
+def _send_smtp(settings: dict, to_email: str, msg):
+    """Senkron SMTP gönderimi (thread pool içinde çalışır)"""
+    with smtplib.SMTP(settings['smtp_host'], settings['smtp_port'], timeout=15) as server:
+        server.starttls()
+        server.login(settings['smtp_user'], settings['smtp_password'])
+        server.sendmail(settings['sender_email'], to_email, msg.as_string())
 
 async def send_reminder_notifications():
     """Yaklaşan ödemeleri e-posta ile bildir"""
