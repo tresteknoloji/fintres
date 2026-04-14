@@ -213,7 +213,7 @@ export default function DashboardPage() {
                       borderColor: "hsl(217, 19%, 20%)",
                       borderRadius: "8px"
                     }}
-                    formatter={(value) => [formatCurrency(value), ""]}
+                    formatter={(value, name) => [formatCurrency(value), name]}
                   />
                   <Legend
                     formatter={(value) => <span className="text-sm text-muted-foreground capitalize">{value}</span>}
