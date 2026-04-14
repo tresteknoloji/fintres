@@ -62,6 +62,7 @@ export default function SettingsPage() {
     smtp_port: "587",
     smtp_user: "",
     smtp_password: "",
+    smtp_security: "starttls",
     sender_name: "",
     sender_email: "",
     notify_email: "",
@@ -109,6 +110,7 @@ export default function SettingsPage() {
           smtp_port: response.data.smtp_port?.toString() || "587",
           smtp_user: response.data.smtp_user || "",
           smtp_password: "",
+          smtp_security: response.data.smtp_security || "starttls",
           sender_name: response.data.sender_name || "",
           sender_email: response.data.sender_email || "",
           notify_email: response.data.notify_email || "",
@@ -540,6 +542,25 @@ export default function SettingsPage() {
                         placeholder="587"
                         data-testid="smtp-port"
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="smtp_security">Güvenlik</Label>
+                      <Select
+                        value={smtpForm.smtp_security}
+                        onValueChange={(v) => {
+                          const port = v === "ssl" ? "465" : v === "starttls" ? "587" : "25";
+                          setSmtpForm({ ...smtpForm, smtp_security: v, smtp_port: port });
+                        }}
+                      >
+                        <SelectTrigger data-testid="smtp-security">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ssl">SSL (Port 465)</SelectItem>
+                          <SelectItem value="starttls">STARTTLS (Port 587)</SelectItem>
+                          <SelectItem value="none">Yok (Port 25)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="smtp_user">SMTP Kullanıcı Adı *</Label>

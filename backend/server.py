@@ -263,9 +263,10 @@ class SMTPSettingsCreate(BaseModel):
     smtp_port: int = 587
     smtp_user: str
     smtp_password: str
+    smtp_security: str = "starttls"  # "ssl", "starttls", "none"
     sender_name: str
     sender_email: str
-    notify_email: str  # Bildirimlerin gideceği e-posta
+    notify_email: str
     is_active: bool = True
 
 class SMTPSettingsResponse(BaseModel):
@@ -274,6 +275,7 @@ class SMTPSettingsResponse(BaseModel):
     smtp_host: str
     smtp_port: int
     smtp_user: str
+    smtp_security: Optional[str] = "starttls"
     sender_name: str
     sender_email: str
     notify_email: str
@@ -496,10 +498,23 @@ async def send_email(to_email: str, subject: str, html_content: str):
 
 def _send_smtp(settings: dict, to_email: str, msg):
     """Senkron SMTP gönderimi (thread pool içinde çalışır)"""
-    with smtplib.SMTP(settings['smtp_host'], settings['smtp_port'], timeout=15) as server:
-        server.starttls()
-        server.login(settings['smtp_user'], settings['smtp_password'])
-        server.sendmail(settings['sender_email'], to_email, msg.as_string())
+    security = settings.get('smtp_security', 'starttls')
+    host = settings['smtp_host']
+    port = settings['smtp_port']
+    
+    if security == 'ssl':
+        with smtplib.SMTP_SSL(host, port, timeout=15) as server:
+            server.login(settings['smtp_user'], settings['smtp_password'])
+            server.sendmail(settings['sender_email'], to_email, msg.as_string())
+    elif security == 'starttls':
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.starttls()
+            server.login(settings['smtp_user'], settings['smtp_password'])
+            server.sendmail(settings['sender_email'], to_email, msg.as_string())
+    else:
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            server.login(settings['smtp_user'], settings['smtp_password'])
+            server.sendmail(settings['sender_email'], to_email, msg.as_string())
 
 async def send_reminder_notifications():
     """Yaklaşan ödemeleri e-posta ile bildir"""
