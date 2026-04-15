@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useCompany } from "../context/CompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { formatCurrency, getMonthName } from "../lib/utils";
+import { formatCurrency, getMonthName, EXPENSE_CATEGORIES } from "../lib/utils";
 import {
   TrendingUp,
   TrendingDown,
@@ -213,10 +213,16 @@ export default function DashboardPage() {
                       borderColor: "hsl(217, 19%, 20%)",
                       borderRadius: "8px"
                     }}
-                    formatter={(value, name) => [formatCurrency(value), name]}
+                    formatter={(value, name) => {
+                      const cat = EXPENSE_CATEGORIES.find(c => c.value === name);
+                      return [formatCurrency(value), cat?.label || name];
+                    }}
                   />
                   <Legend
-                    formatter={(value) => <span className="text-sm text-muted-foreground capitalize">{value}</span>}
+                    formatter={(value) => {
+                      const cat = EXPENSE_CATEGORIES.find(c => c.value === value);
+                      return <span className="text-sm text-muted-foreground">{cat?.label || value}</span>;
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
