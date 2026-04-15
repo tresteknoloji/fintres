@@ -175,7 +175,7 @@ export default function DashboardPage() {
                       borderColor: "hsl(217, 19%, 20%)",
                       borderRadius: "8px"
                     }}
-                    formatter={(value) => [formatCurrency(value), ""]}
+                    formatter={(value, name) => [formatCurrency(value), name]}
                   />
                   <Bar dataKey="income" name="Gelir" fill="#22c55e" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="expense" name="Gider" fill="#ef4444" radius={[4, 4, 0, 0]} />
