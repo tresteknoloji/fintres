@@ -94,5 +94,6 @@ export const REMINDER_CATEGORIES = [
   { value: "vergi", label: "Vergi" },
   { value: "sigorta", label: "Sigorta" },
   { value: "maas", label: "Maaş" },
+  { value: "veri_merkezi", label: "Veri Merkezi" },
   { value: "diger", label: "Diğer" }
 ];
