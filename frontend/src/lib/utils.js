@@ -64,6 +64,7 @@ export const EXPENSE_CATEGORIES = [
   { value: "malzeme", label: "Malzeme" },
   { value: "bakim", label: "Bakım/Onarım" },
   { value: "ulasim", label: "Ulaşım" },
+  { value: "yemek", label: "Yemek/İaşe" },
   { value: "reklam", label: "Reklam & Pazarlama" },
   { value: "veri_merkezi", label: "Veri Merkezi" },
   { value: "diger", label: "Diğer" }
