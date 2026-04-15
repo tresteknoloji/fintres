@@ -1312,9 +1312,68 @@ async def update_reminder(reminder_id: str, reminder: ReminderCreate, current_us
 
 @api_router.put("/reminders/{reminder_id}/pay")
 async def mark_reminder_paid(reminder_id: str, current_user: dict = Depends(get_current_user)):
-    result = await db.reminders.update_one({"id": reminder_id}, {"$set": {"is_paid": True}})
-    if result.matched_count == 0:
+    reminder = await db.reminders.find_one({"id": reminder_id}, {"_id": 0})
+    if not reminder:
         raise HTTPException(status_code=404, detail="Hatırlatıcı bulunamadı")
+    
+    await db.reminders.update_one({"id": reminder_id}, {"$set": {"is_paid": True}})
+    
+    # Tekrarlayan ödemeyse bir sonraki periyot için yeni hatırlatıcı oluştur
+    if reminder.get("is_recurring") and reminder.get("recurring_period"):
+        due_date = reminder.get("due_date", "")[:10]
+        try:
+            current_due = datetime.strptime(due_date, "%Y-%m-%d")
+            period = reminder["recurring_period"]
+            
+            if period == "monthly":
+                # Bir sonraki ay
+                month = current_due.month + 1
+                year = current_due.year
+                if month > 12:
+                    month = 1
+                    year += 1
+                day = min(current_due.day, 28)  # Güvenli gün
+                next_due = current_due.replace(year=year, month=month, day=day)
+            elif period == "yearly":
+                next_due = current_due.replace(year=current_due.year + 1)
+            elif period == "weekly":
+                next_due = current_due + timedelta(days=7)
+            elif period == "quarterly":
+                month = current_due.month + 3
+                year = current_due.year
+                while month > 12:
+                    month -= 12
+                    year += 1
+                day = min(current_due.day, 28)
+                next_due = current_due.replace(year=year, month=month, day=day)
+            else:
+                next_due = None
+            
+            if next_due:
+                new_reminder = {
+                    "id": str(uuid.uuid4()),
+                    "company_id": reminder["company_id"],
+                    "title": reminder["title"],
+                    "description": reminder.get("description"),
+                    "amount": reminder["amount"],
+                    "currency": reminder.get("currency", "TRY"),
+                    "due_date": next_due.strftime("%Y-%m-%d"),
+                    "category": reminder["category"],
+                    "is_recurring": True,
+                    "recurring_period": period,
+                    "is_paid": False,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.reminders.insert_one(new_reminder)
+                
+                period_labels = {"monthly": "ay", "yearly": "yıl", "weekly": "hafta", "quarterly": "çeyrek"}
+                return {
+                    "message": f"Ödeme yapıldı. Sonraki hatırlatıcı {next_due.strftime('%d.%m.%Y')} tarihine oluşturuldu.",
+                    "next_due": next_due.strftime("%Y-%m-%d")
+                }
+        except Exception as e:
+            logger.error(f"Sonraki hatırlatıcı oluşturma hatası: {str(e)}")
+    
     return {"message": "Ödeme yapıldı olarak işaretlendi"}
 
 @api_router.delete("/reminders/{reminder_id}")

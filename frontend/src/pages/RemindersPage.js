@@ -130,8 +130,8 @@ export default function RemindersPage() {
 
   const handleMarkPaid = async (reminder) => {
     try {
-      await axios.put(`${API}/reminders/${reminder.id}/pay`);
-      toast.success("Ödeme yapıldı olarak işaretlendi");
+      const response = await axios.put(`${API}/reminders/${reminder.id}/pay`);
+      toast.success(response.data.message);
       fetchReminders();
     } catch (error) {
       toast.error("İşlem başarısız");
