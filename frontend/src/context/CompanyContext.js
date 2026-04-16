@@ -25,7 +25,9 @@ export function CompanyProvider({ children }) {
       
       // Auto-select first company or restore from localStorage
       const savedCompanyId = localStorage.getItem("selectedCompanyId");
-      if (savedCompanyId) {
+      if (savedCompanyId === "__all__") {
+        setSelectedCompany(null);
+      } else if (savedCompanyId) {
         const saved = response.data.find(c => c.id === savedCompanyId);
         if (saved) {
           setSelectedCompany(saved);
@@ -47,7 +49,7 @@ export function CompanyProvider({ children }) {
     if (company) {
       localStorage.setItem("selectedCompanyId", company.id);
     } else {
-      localStorage.removeItem("selectedCompanyId");
+      localStorage.setItem("selectedCompanyId", "__all__");
     }
   };
 
