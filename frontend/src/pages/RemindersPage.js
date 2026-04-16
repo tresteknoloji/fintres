@@ -43,6 +43,7 @@ export default function RemindersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState("pending"); // "pending", "overdue", "all"
   const [form, setForm] = useState({
     company_id: "",
     title: "",
@@ -173,6 +174,19 @@ export default function RemindersPage() {
   const pendingTotal = reminders
     .filter(r => !r.is_paid)
     .reduce((sum, r) => sum + (r.currency === "TRY" ? r.amount : 0), 0);
+
+  const overdueCount = reminders.filter(r => {
+    if (r.is_paid) return false;
+    return new Date(r.due_date) < new Date();
+  }).length;
+  const pendingCount = reminders.filter(r => !r.is_paid).length;
+  const paidCount = reminders.filter(r => r.is_paid).length;
+
+  const filteredReminders = reminders.filter(r => {
+    if (filter === "pending") return !r.is_paid;
+    if (filter === "overdue") return !r.is_paid && new Date(r.due_date) < new Date();
+    return true; // "all"
+  });
 
   if (loading) {
     return (
@@ -329,7 +343,36 @@ export default function RemindersPage() {
       </div>
 
       {/* Table */}
-      {reminders.length === 0 ? (
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={filter === "pending" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilter("pending")}
+          data-testid="filter-pending"
+        >
+          Bekleyenler ({pendingCount})
+        </Button>
+        <Button
+          variant={filter === "overdue" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilter("overdue")}
+          className={filter === "overdue" ? "" : "text-red-500 border-red-500/50"}
+          data-testid="filter-overdue"
+        >
+          Gecikmiş ({overdueCount})
+        </Button>
+        <Button
+          variant={filter === "all" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setFilter("all")}
+          data-testid="filter-all"
+        >
+          Tümü ({reminders.length})
+        </Button>
+      </div>
+
+      {filteredReminders.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
             <Bell className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -352,7 +395,7 @@ export default function RemindersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reminders.map((reminder) => {
+              {filteredReminders.map((reminder) => {
                 const dueDateStatus = getDueDateStatus(reminder.due_date, reminder.is_paid);
                 return (
                   <TableRow key={reminder.id} data-testid={`reminder-row-${reminder.id}`}>
