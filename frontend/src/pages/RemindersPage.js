@@ -182,11 +182,13 @@ export default function RemindersPage() {
   const pendingCount = reminders.filter(r => !r.is_paid).length;
   const paidCount = reminders.filter(r => r.is_paid).length;
 
-  const filteredReminders = reminders.filter(r => {
-    if (filter === "pending") return !r.is_paid;
-    if (filter === "overdue") return !r.is_paid && new Date(r.due_date) < new Date();
-    return true; // "all"
-  });
+  const filteredReminders = reminders
+    .filter(r => {
+      if (filter === "pending") return !r.is_paid;
+      if (filter === "overdue") return !r.is_paid && new Date(r.due_date) < new Date();
+      return true;
+    })
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
   if (loading) {
     return (
