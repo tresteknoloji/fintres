@@ -329,6 +329,48 @@ class CreditCardResponse(BaseModel):
     notes: Optional[str] = None
     created_at: str
 
+class LoanCreate(BaseModel):
+    company_id: str
+    bank_name: str
+    loan_name: Optional[str] = None
+    currency: str = "TRY"
+    loan_amount: float
+    interest_rate: float = 0
+    start_date: str
+    term_months: int
+    monthly_payment: float
+    total_repayment: float = 0
+    payment_day: int = 1
+    notes: Optional[str] = None
+
+class LoanResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    company_id: str
+    bank_name: str
+    loan_name: Optional[str] = None
+    currency: str
+    loan_amount: float
+    interest_rate: float
+    start_date: str
+    term_months: int
+    monthly_payment: float
+    total_repayment: float
+    payment_day: int
+    paid_installments: int = 0
+    notes: Optional[str] = None
+    created_at: str
+
+class LoanInstallmentResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    loan_id: str
+    installment_no: int
+    amount: float
+    due_date: str
+    is_paid: bool
+    paid_date: Optional[str] = None
+
 class SMTPSettingsCreate(BaseModel):
     smtp_host: str
     smtp_port: int = 587
@@ -1282,6 +1324,174 @@ async def get_bank_cards_summary(company_id: Optional[str] = None, current_user:
         "kmh_count": len(kmh_accounts),
         "card_count": len(cards)
     }
+
+# ============ LOAN ROUTES ============
+
+@api_router.post("/loans")
+async def create_loan(loan: LoanCreate, current_user: dict = Depends(get_current_user)):
+    loan_id = str(uuid.uuid4())
+    total_repayment = loan.total_repayment if loan.total_repayment > 0 else loan.monthly_payment * loan.term_months
+    
+    loan_doc = {
+        "id": loan_id,
+        **loan.model_dump(),
+        "total_repayment": total_repayment,
+        "paid_installments": 0,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.loans.insert_one(loan_doc)
+    
+    # Taksitleri oluştur
+    start = datetime.strptime(loan.start_date, "%Y-%m-%d")
+    for i in range(loan.term_months):
+        month = start.month + i
+        year = start.year
+        while month > 12:
+            month -= 12
+            year += 1
+        day = min(loan.payment_day, 28)
+        due = datetime(year, month, day)
+        
+        installment = {
+            "id": str(uuid.uuid4()),
+            "loan_id": loan_id,
+            "installment_no": i + 1,
+            "amount": loan.monthly_payment,
+            "due_date": due.strftime("%Y-%m-%d"),
+            "is_paid": False,
+            "paid_date": None
+        }
+        await db.loan_installments.insert_one(installment)
+    
+    # İlk taksit için hatırlatıcı oluştur
+    first_month = start.month
+    first_year = start.year
+    first_day = min(loan.payment_day, 28)
+    first_due = datetime(first_year, first_month, first_day)
+    
+    reminder_doc = {
+        "id": str(uuid.uuid4()),
+        "company_id": loan.company_id,
+        "title": f"{loan.bank_name} - {loan.loan_name or 'Kredi'} Taksit 1/{loan.term_months}",
+        "description": f"Kredi taksit ödemesi",
+        "amount": loan.monthly_payment,
+        "currency": loan.currency,
+        "due_date": first_due.strftime("%Y-%m-%d"),
+        "category": "kredi",
+        "is_recurring": True,
+        "recurring_period": "monthly",
+        "is_paid": False,
+        "loan_id": loan_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.reminders.insert_one(reminder_doc)
+    
+    response = {k: v for k, v in loan_doc.items() if k != "_id"}
+    return response
+
+@api_router.get("/loans")
+async def get_loans(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"company_id": company_id} if company_id else {}
+    loans = await db.loans.find(query, {"_id": 0}).to_list(1000)
+    # Her kredi için ödenen taksit sayısını hesapla
+    for loan in loans:
+        paid = await db.loan_installments.count_documents({"loan_id": loan["id"], "is_paid": True})
+        loan["paid_installments"] = paid
+    return loans
+
+@api_router.get("/loans/{loan_id}")
+async def get_loan_detail(loan_id: str, current_user: dict = Depends(get_current_user)):
+    loan = await db.loans.find_one({"id": loan_id}, {"_id": 0})
+    if not loan:
+        raise HTTPException(status_code=404, detail="Kredi bulunamadı")
+    installments = await db.loan_installments.find({"loan_id": loan_id}, {"_id": 0}).sort("installment_no", 1).to_list(1000)
+    paid = sum(1 for i in installments if i.get("is_paid"))
+    loan["paid_installments"] = paid
+    return {"loan": loan, "installments": installments}
+
+@api_router.put("/loans/{loan_id}/pay-installment")
+async def pay_loan_installment(loan_id: str, current_user: dict = Depends(get_current_user)):
+    """Sıradaki ödenmemiş taksiti öde ve sonraki için hatırlatıcı oluştur"""
+    loan = await db.loans.find_one({"id": loan_id}, {"_id": 0})
+    if not loan:
+        raise HTTPException(status_code=404, detail="Kredi bulunamadı")
+    
+    # Sıradaki ödenmemiş taksiti bul
+    next_installment = await db.loan_installments.find_one(
+        {"loan_id": loan_id, "is_paid": False},
+        {"_id": 0},
+        sort=[("installment_no", 1)]
+    )
+    if not next_installment:
+        raise HTTPException(status_code=400, detail="Tüm taksitler ödenmiş")
+    
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    await db.loan_installments.update_one(
+        {"id": next_installment["id"]},
+        {"$set": {"is_paid": True, "paid_date": today}}
+    )
+    
+    # Ödenen taksit sayısını güncelle
+    paid_count = await db.loan_installments.count_documents({"loan_id": loan_id, "is_paid": True})
+    await db.loans.update_one({"id": loan_id}, {"$set": {"paid_installments": paid_count}})
+    
+    # Sonraki taksit varsa hatırlatıcı oluştur
+    next_unpaid = await db.loan_installments.find_one(
+        {"loan_id": loan_id, "is_paid": False},
+        {"_id": 0},
+        sort=[("installment_no", 1)]
+    )
+    
+    if next_unpaid:
+        # Eski kredi hatırlatıcılarını ödendi yap
+        await db.reminders.update_many(
+            {"loan_id": loan_id, "is_paid": False},
+            {"$set": {"is_paid": True}}
+        )
+        
+        reminder_doc = {
+            "id": str(uuid.uuid4()),
+            "company_id": loan["company_id"],
+            "title": f"{loan['bank_name']} - {loan.get('loan_name') or 'Kredi'} Taksit {next_unpaid['installment_no']}/{loan['term_months']}",
+            "description": "Kredi taksit ödemesi",
+            "amount": next_unpaid["amount"],
+            "currency": loan.get("currency", "TRY"),
+            "due_date": next_unpaid["due_date"],
+            "category": "kredi",
+            "is_recurring": True,
+            "recurring_period": "monthly",
+            "is_paid": False,
+            "loan_id": loan_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.reminders.insert_one(reminder_doc)
+        
+        return {
+            "message": f"Taksit {next_installment['installment_no']} ödendi. Sonraki taksit: {next_unpaid['due_date']}",
+            "paid_installment": next_installment["installment_no"],
+            "next_installment": next_unpaid["installment_no"],
+            "remaining": loan["term_months"] - paid_count
+        }
+    else:
+        # Tüm taksitler ödendi
+        await db.reminders.update_many(
+            {"loan_id": loan_id, "is_paid": False},
+            {"$set": {"is_paid": True}}
+        )
+        return {
+            "message": "Tebrikler! Kredi tamamen ödendi.",
+            "paid_installment": next_installment["installment_no"],
+            "remaining": 0
+        }
+
+@api_router.delete("/loans/{loan_id}")
+async def delete_loan(loan_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.loans.delete_one({"id": loan_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Kredi bulunamadı")
+    await db.loan_installments.delete_many({"loan_id": loan_id})
+    await db.reminders.delete_many({"loan_id": loan_id})
+    return {"message": "Kredi ve taksitleri silindi"}
 
 # ============ REMINDER ROUTES ============
 

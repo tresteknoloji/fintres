@@ -90,6 +90,7 @@ export const PAYMENT_TYPES = [
 export const REMINDER_CATEGORIES = [
   { value: "kira", label: "Kira" },
   { value: "kredi", label: "Kredi Taksiti" },
+  { value: "kredi_karti", label: "Kredi Kartı" },
   { value: "fatura", label: "Fatura" },
   { value: "vergi", label: "Vergi" },
   { value: "sigorta", label: "Sigorta" },
