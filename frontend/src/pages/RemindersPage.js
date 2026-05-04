@@ -43,7 +43,13 @@ export default function RemindersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState("pending"); // "pending", "overdue", "all"
+  const [filter, setFilter] = useState("pending");
+  const [payDialog, setPayDialog] = useState(false);
+  const [payingReminder, setPayingReminder] = useState(null);
+  const [payForm, setPayForm] = useState({
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_method: "banka_transferi"
+  });
   const [form, setForm] = useState({
     company_id: "",
     title: "",
@@ -129,10 +135,22 @@ export default function RemindersPage() {
     }
   };
 
-  const handleMarkPaid = async (reminder) => {
+  const openPayDialog = (reminder) => {
+    setPayingReminder(reminder);
+    setPayForm({
+      payment_date: new Date().toISOString().slice(0, 10),
+      payment_method: "banka_transferi"
+    });
+    setPayDialog(true);
+  };
+
+  const handleMarkPaid = async () => {
+    if (!payingReminder) return;
     try {
-      const response = await axios.put(`${API}/reminders/${reminder.id}/pay`);
+      const response = await axios.put(`${API}/reminders/${payingReminder.id}/pay`, payForm);
       toast.success(response.data.message);
+      setPayDialog(false);
+      setPayingReminder(null);
       fetchReminders();
     } catch (error) {
       toast.error("İşlem başarısız");
@@ -427,7 +445,7 @@ export default function RemindersPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         {!reminder.is_paid && (
-                          <Button variant="ghost" size="sm" onClick={() => handleMarkPaid(reminder)} title="Ödendi İşaretle" data-testid={`pay-reminder-${reminder.id}`}>
+                          <Button variant="ghost" size="sm" onClick={() => openPayDialog(reminder)} title="Ödendi İşaretle" data-testid={`pay-reminder-${reminder.id}`}>
                             <Check className="w-4 h-4 text-green-500" />
                           </Button>
                         )}
@@ -446,6 +464,65 @@ export default function RemindersPage() {
           </Table>
         </div>
       )}
+
+      {/* Ödeme Modalı */}
+      <Dialog open={payDialog} onOpenChange={setPayDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ödeme Kaydı</DialogTitle>
+          </DialogHeader>
+          {payingReminder && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-4 border border-border">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium">{payingReminder.title}</p>
+                    <p className="text-sm text-muted-foreground">Vade: {formatDate(payingReminder.due_date)}</p>
+                  </div>
+                  <p className="text-lg font-bold text-primary">{formatCurrency(payingReminder.amount, payingReminder.currency)}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Ödeme Tarihi *</Label>
+                  <Input
+                    type="date"
+                    value={payForm.payment_date}
+                    onChange={(e) => setPayForm({ ...payForm, payment_date: e.target.value })}
+                    data-testid="pay-date"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Ödeme Türü *</Label>
+                  <Select value={payForm.payment_method} onValueChange={(v) => setPayForm({ ...payForm, payment_method: v })}>
+                    <SelectTrigger data-testid="pay-method">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nakit">Nakit</SelectItem>
+                      <SelectItem value="kredi_karti">Kredi Kartı</SelectItem>
+                      <SelectItem value="banka_transferi">Banka Transferi</SelectItem>
+                      <SelectItem value="havale">Havale/EFT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Ödeme onaylandığında otomatik olarak gider kaydı oluşturulacaktır.
+              </p>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPayDialog(false)}>İptal</Button>
+                <Button onClick={handleMarkPaid} data-testid="confirm-pay">
+                  <Check className="w-4 h-4 mr-2" />Ödendi Onayla
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

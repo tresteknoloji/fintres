@@ -1523,13 +1523,35 @@ async def update_reminder(reminder_id: str, reminder: ReminderCreate, current_us
     updated = await db.reminders.find_one({"id": reminder_id}, {"_id": 0})
     return ReminderResponse(**updated)
 
+class PayReminderRequest(BaseModel):
+    payment_date: str
+    payment_method: str = "nakit"  # nakit, kredi_karti, banka_transferi, havale
+
 @api_router.put("/reminders/{reminder_id}/pay")
-async def mark_reminder_paid(reminder_id: str, current_user: dict = Depends(get_current_user)):
+async def mark_reminder_paid(reminder_id: str, pay_data: Optional[PayReminderRequest] = None, current_user: dict = Depends(get_current_user)):
     reminder = await db.reminders.find_one({"id": reminder_id}, {"_id": 0})
     if not reminder:
         raise HTTPException(status_code=404, detail="Hatırlatıcı bulunamadı")
     
-    await db.reminders.update_one({"id": reminder_id}, {"$set": {"is_paid": True}})
+    payment_date = pay_data.payment_date if pay_data else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    payment_method = pay_data.payment_method if pay_data else "nakit"
+    
+    await db.reminders.update_one({"id": reminder_id}, {"$set": {"is_paid": True, "payment_date": payment_date, "payment_method": payment_method}})
+    
+    # Gider kaydı oluştur
+    expense_doc = {
+        "id": str(uuid.uuid4()),
+        "company_id": reminder["company_id"],
+        "title": reminder["title"],
+        "description": f"Hatırlatıcıdan ödendi ({payment_method})",
+        "amount": reminder["amount"],
+        "currency": reminder.get("currency", "TRY"),
+        "date": payment_date,
+        "category": reminder.get("category", "diger"),
+        "payment_method": payment_method,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.expenses.insert_one(expense_doc)
     
     # Tekrarlayan ödemeyse bir sonraki periyot için yeni hatırlatıcı oluştur
     if reminder.get("is_recurring") and reminder.get("recurring_period"):
@@ -1539,13 +1561,12 @@ async def mark_reminder_paid(reminder_id: str, current_user: dict = Depends(get_
             period = reminder["recurring_period"]
             
             if period == "monthly":
-                # Bir sonraki ay
                 month = current_due.month + 1
                 year = current_due.year
                 if month > 12:
                     month = 1
                     year += 1
-                day = min(current_due.day, 28)  # Güvenli gün
+                day = min(current_due.day, 28)
                 next_due = current_due.replace(year=year, month=month, day=day)
             elif period == "yearly":
                 next_due = current_due.replace(year=current_due.year + 1)
@@ -1579,15 +1600,14 @@ async def mark_reminder_paid(reminder_id: str, current_user: dict = Depends(get_
                 }
                 await db.reminders.insert_one(new_reminder)
                 
-                period_labels = {"monthly": "ay", "yearly": "yıl", "weekly": "hafta", "quarterly": "çeyrek"}
                 return {
-                    "message": f"Ödeme yapıldı. Sonraki hatırlatıcı {next_due.strftime('%d.%m.%Y')} tarihine oluşturuldu.",
+                    "message": f"Ödeme yapıldı ve gider kaydedildi. Sonraki: {next_due.strftime('%d.%m.%Y')}",
                     "next_due": next_due.strftime("%Y-%m-%d")
                 }
         except Exception as e:
             logger.error(f"Sonraki hatırlatıcı oluşturma hatası: {str(e)}")
     
-    return {"message": "Ödeme yapıldı olarak işaretlendi"}
+    return {"message": "Ödeme yapıldı ve gider kaydedildi"}
 
 @api_router.delete("/reminders/{reminder_id}")
 async def delete_reminder(reminder_id: str, current_user: dict = Depends(get_current_user)):
