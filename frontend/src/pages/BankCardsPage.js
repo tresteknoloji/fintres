@@ -415,7 +415,7 @@ export default function BankCardsPage() {
       </DialogContent></Dialog>
 
       {/* Loan Detail Dialog */}
-      <Dialog open={loanDetailDialog} onOpenChange={setLoanDetailDialog}><DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={loanDetailDialog} onOpenChange={setLoanDetailDialog}><DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         {loanDetail && (<>
           <DialogHeader><DialogTitle>{loanDetail.loan.bank_name} - {loanDetail.loan.loan_name || "Kredi"}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">

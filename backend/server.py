@@ -1341,10 +1341,10 @@ async def create_loan(loan: LoanCreate, current_user: dict = Depends(get_current
     }
     await db.loans.insert_one(loan_doc)
     
-    # Taksitleri oluştur
+    # Taksitleri oluştur (ilk taksit başlangıç tarihinden 1 ay sonra)
     start = datetime.strptime(loan.start_date, "%Y-%m-%d")
     for i in range(loan.term_months):
-        month = start.month + i
+        month = start.month + i + 1
         year = start.year
         while month > 12:
             month -= 12
@@ -1363,9 +1363,12 @@ async def create_loan(loan: LoanCreate, current_user: dict = Depends(get_current
         }
         await db.loan_installments.insert_one(installment)
     
-    # İlk taksit için hatırlatıcı oluştur
-    first_month = start.month
+    # İlk taksit için hatırlatıcı oluştur (başlangıçtan 1 ay sonra)
+    first_month = start.month + 1
     first_year = start.year
+    if first_month > 12:
+        first_month -= 12
+        first_year += 1
     first_day = min(loan.payment_day, 28)
     first_due = datetime(first_year, first_month, first_day)
     
