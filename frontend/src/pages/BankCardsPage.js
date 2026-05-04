@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
-import { Landmark, CreditCard, Plus, Pencil, Trash2, Wallet, Building2, Banknote, Check, Eye } from "lucide-react";
+import { Landmark, CreditCard, Plus, Pencil, Trash2, Wallet, Building2, Banknote, Check, Eye, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate, CURRENCIES } from "../lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -58,6 +58,7 @@ export default function BankCardsPage() {
   const [cards, setCards] = useState([]);
   const [loans, setLoans] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [debtSummary, setDebtSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [accountDialog, setAccountDialog] = useState(false);
@@ -88,18 +89,20 @@ export default function BankCardsPage() {
     setLoading(true);
     try {
       const params = selectedCompany ? { company_id: selectedCompany.id } : {};
-      const [accRes, kmhRes, cardRes, loanRes, sumRes] = await Promise.all([
+      const [accRes, kmhRes, cardRes, loanRes, sumRes, debtRes] = await Promise.all([
         axios.get(`${API}/bank-accounts`, { params }),
         axios.get(`${API}/kmh-accounts`, { params }),
         axios.get(`${API}/credit-cards`, { params }),
         axios.get(`${API}/loans`, { params }),
-        axios.get(`${API}/bank-cards/summary`, { params })
+        axios.get(`${API}/bank-cards/summary`, { params }),
+        axios.get(`${API}/bank-cards/debt-summary`, { params })
       ]);
       setAccounts(accRes.data);
       setKmhAccounts(kmhRes.data);
       setCards(cardRes.data);
       setLoans(loanRes.data);
       setSummary(sumRes.data);
+      setDebtSummary(debtRes.data);
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
@@ -275,6 +278,7 @@ export default function BankCardsPage() {
           <TabsTrigger value="kmh" data-testid="tab-kmh"><Wallet className="w-4 h-4 mr-2" />KMH ({kmhAccounts.length})</TabsTrigger>
           <TabsTrigger value="cards" data-testid="tab-cards"><CreditCard className="w-4 h-4 mr-2" />Kartlar ({cards.length})</TabsTrigger>
           <TabsTrigger value="loans" data-testid="tab-loans"><Banknote className="w-4 h-4 mr-2" />Krediler ({loans.length})</TabsTrigger>
+          <TabsTrigger value="debt" data-testid="tab-debt"><AlertCircle className="w-4 h-4 mr-2" />Borç Özeti</TabsTrigger>
         </TabsList>
 
         {/* Bank Accounts */}
@@ -352,6 +356,76 @@ export default function BankCardsPage() {
                 </TableRow>
               ))}
             </TableBody></Table></div>
+          )}
+        </TabsContent>
+
+        {/* Borç Özeti */}
+        <TabsContent value="debt" className="space-y-6">
+          {debtSummary && (
+            <>
+              {/* Toplam Borç Kartları */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="border-2 border-red-500/30">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Toplam Borç</CardTitle></CardHeader>
+                  <CardContent><div className="text-2xl font-bold text-red-500">{formatCurrency(debtSummary.total_debt)}</div></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">KMH Borcu</CardTitle></CardHeader>
+                  <CardContent><div className="text-xl font-bold text-blue-500">{formatCurrency(debtSummary.total_kmh_debt)}</div></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Kredi Kartı Borcu</CardTitle></CardHeader>
+                  <CardContent><div className="text-xl font-bold text-purple-500">{formatCurrency(debtSummary.total_card_debt)}</div></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Kredi Borcu</CardTitle></CardHeader>
+                  <CardContent><div className="text-xl font-bold text-orange-500">{formatCurrency(debtSummary.total_loan_debt)}</div></CardContent>
+                </Card>
+              </div>
+
+              {/* KMH Borçları */}
+              {debtSummary.kmh_debts.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Wallet className="w-4 h-4 text-blue-500" />KMH Borçları</CardTitle></CardHeader>
+                  <CardContent>
+                    <Table><TableHeader><TableRow><TableHead>Banka</TableHead><TableHead>Hesap</TableHead><TableHead className="text-right">Borç</TableHead></TableRow></TableHeader>
+                    <TableBody>{debtSummary.kmh_debts.map((d, i) => (
+                      <TableRow key={i}><TableCell className="font-medium">{d.bank_name}</TableCell><TableCell>{d.account_name || "-"}</TableCell><TableCell className="text-right font-bold text-blue-500">{formatCurrency(d.debt, d.currency)}</TableCell></TableRow>
+                    ))}</TableBody></Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Kart Borçları */}
+              {debtSummary.card_debts.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><CreditCard className="w-4 h-4 text-purple-500" />Kredi Kartı Borçları</CardTitle></CardHeader>
+                  <CardContent>
+                    <Table><TableHeader><TableRow><TableHead>Banka</TableHead><TableHead>Kart</TableHead><TableHead className="text-right">Borç</TableHead></TableRow></TableHeader>
+                    <TableBody>{debtSummary.card_debts.map((d, i) => (
+                      <TableRow key={i}><TableCell className="font-medium">{d.bank_name}</TableCell><TableCell>{d.card_name || "-"}</TableCell><TableCell className="text-right font-bold text-purple-500">{formatCurrency(d.debt, d.currency)}</TableCell></TableRow>
+                    ))}</TableBody></Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Kredi Borçları */}
+              {debtSummary.loan_debts.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Banknote className="w-4 h-4 text-orange-500" />Kredi Borçları</CardTitle></CardHeader>
+                  <CardContent>
+                    <Table><TableHeader><TableRow><TableHead>Banka</TableHead><TableHead>Kredi</TableHead><TableHead>Kalan Taksit</TableHead><TableHead className="text-right">Aylık</TableHead><TableHead className="text-right">Toplam Borç</TableHead></TableRow></TableHeader>
+                    <TableBody>{debtSummary.loan_debts.map((d, i) => (
+                      <TableRow key={i}><TableCell className="font-medium">{d.bank_name}</TableCell><TableCell>{d.loan_name || "-"}</TableCell><TableCell>{d.remaining_installments} taksit</TableCell><TableCell className="text-right">{formatCurrency(d.monthly_payment, d.currency)}</TableCell><TableCell className="text-right font-bold text-orange-500">{formatCurrency(d.debt, d.currency)}</TableCell></TableRow>
+                    ))}</TableBody></Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              {debtSummary.total_debt === 0 && (
+                <Card className="text-center py-12"><CardContent><Check className="w-12 h-12 mx-auto text-green-500 mb-4" /><h3 className="text-lg font-medium text-green-500">Borç yok!</h3><p className="text-muted-foreground mt-1">Tüm hesaplar temiz</p></CardContent></Card>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>

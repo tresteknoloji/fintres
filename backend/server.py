@@ -1325,6 +1325,53 @@ async def get_bank_cards_summary(company_id: Optional[str] = None, current_user:
         "card_count": len(cards)
     }
 
+@api_router.get("/bank-cards/debt-summary")
+async def get_debt_summary(company_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"company_id": company_id} if company_id else {}
+    
+    # KMH borcu: limit - kullanılabilir
+    kmh_accounts = await db.kmh_accounts.find(query, {"_id": 0}).to_list(1000)
+    kmh_debts = []
+    total_kmh_debt = 0
+    for k in kmh_accounts:
+        debt = k.get("total_limit", 0) - k.get("available_limit", 0)
+        if debt > 0:
+            kmh_debts.append({"bank_name": k["bank_name"], "account_name": k.get("account_name", ""), "debt": debt, "currency": k.get("currency", "TRY")})
+            total_kmh_debt += debt
+    
+    # Kart borcu: limit - kullanılabilir
+    cards = await db.credit_cards.find(query, {"_id": 0}).to_list(1000)
+    card_debts = []
+    total_card_debt = 0
+    for c in cards:
+        debt = c.get("total_limit", 0) - c.get("available_limit", 0)
+        if debt > 0:
+            card_debts.append({"bank_name": c["bank_name"], "card_name": c.get("card_name", ""), "debt": debt, "currency": c.get("currency", "TRY")})
+            total_card_debt += debt
+    
+    # Kredi borcu: ödenmemiş taksit * taksit tutarı
+    loans = await db.loans.find(query, {"_id": 0}).to_list(1000)
+    loan_debts = []
+    total_loan_debt = 0
+    for loan in loans:
+        unpaid_count = await db.loan_installments.count_documents({"loan_id": loan["id"], "is_paid": False})
+        debt = unpaid_count * loan.get("monthly_payment", 0)
+        if debt > 0:
+            loan_debts.append({"bank_name": loan["bank_name"], "loan_name": loan.get("loan_name", ""), "debt": debt, "remaining_installments": unpaid_count, "monthly_payment": loan.get("monthly_payment", 0), "currency": loan.get("currency", "TRY")})
+            total_loan_debt += debt
+    
+    total_debt = total_kmh_debt + total_card_debt + total_loan_debt
+    
+    return {
+        "total_debt": total_debt,
+        "total_kmh_debt": total_kmh_debt,
+        "total_card_debt": total_card_debt,
+        "total_loan_debt": total_loan_debt,
+        "kmh_debts": kmh_debts,
+        "card_debts": card_debts,
+        "loan_debts": loan_debts
+    }
+
 # ============ LOAN ROUTES ============
 
 @api_router.post("/loans")
