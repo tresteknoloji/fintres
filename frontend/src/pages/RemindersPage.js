@@ -44,6 +44,7 @@ export default function RemindersPage() {
   const [editingReminder, setEditingReminder] = useState(null);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("pending");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [payDialog, setPayDialog] = useState(false);
   const [payingReminder, setPayingReminder] = useState(null);
   const [payForm, setPayForm] = useState({
@@ -206,6 +207,7 @@ export default function RemindersPage() {
       if (filter === "overdue") return !r.is_paid && new Date(r.due_date) < new Date();
       return true;
     })
+    .filter(r => categoryFilter === "all" ? true : r.category === categoryFilter)
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
 
   if (loading) {
@@ -364,32 +366,23 @@ export default function RemindersPage() {
 
       {/* Table */}
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={filter === "pending" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setFilter("pending")}
-          data-testid="filter-pending"
-        >
-          Bekleyenler ({pendingCount})
-        </Button>
-        <Button
-          variant={filter === "overdue" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setFilter("overdue")}
-          className={filter === "overdue" ? "" : "text-red-500 border-red-500/50"}
-          data-testid="filter-overdue"
-        >
-          Gecikmiş ({overdueCount})
-        </Button>
-        <Button
-          variant={filter === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setFilter("all")}
-          data-testid="filter-all"
-        >
-          Tümü ({reminders.length})
-        </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant={filter === "pending" ? "default" : "outline"} size="sm" onClick={() => setFilter("pending")} data-testid="filter-pending">Bekleyenler ({pendingCount})</Button>
+        <Button variant={filter === "overdue" ? "default" : "outline"} size="sm" onClick={() => setFilter("overdue")} className={filter === "overdue" ? "" : "text-red-500 border-red-500/50"} data-testid="filter-overdue">Gecikmiş ({overdueCount})</Button>
+        <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")} data-testid="filter-all">Tümü ({reminders.length})</Button>
+        <div className="ml-2">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[180px] h-8 text-sm" data-testid="filter-category">
+              <SelectValue placeholder="Kategori" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm Kategoriler</SelectItem>
+              {REMINDER_CATEGORIES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {filteredReminders.length === 0 ? (
