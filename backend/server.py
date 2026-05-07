@@ -127,7 +127,7 @@ class ExpenseResponse(BaseModel):
     amount: float
     currency: str
     category: str
-    payment_type: str
+    payment_type: Optional[str] = "diger"
     date: str
     notes: Optional[str] = None
     created_at: str
@@ -1595,7 +1595,7 @@ async def mark_reminder_paid(reminder_id: str, pay_data: Optional[PayReminderReq
         "currency": reminder.get("currency", "TRY"),
         "date": payment_date,
         "category": reminder.get("category", "diger"),
-        "payment_method": payment_method,
+        "payment_type": payment_method,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.expenses.insert_one(expense_doc)
