@@ -52,6 +52,11 @@ import {
   Building
 } from "lucide-react";
 import { formatCurrency, CURRENCIES } from "../lib/utils";
+import { PageHeader } from "../components/PageHeader";
+import { KpiCard } from "../components/KpiCard";
+import { SortableHead } from "../components/SortableHead";
+import { useTableSort } from "../hooks/useTableSort";
+import { EmptyState } from "../components/EmptyState";
 import {
   BarChart,
   Bar,
@@ -238,6 +243,26 @@ export default function BudgetPage() {
     return cat?.icon || Receipt;
   };
 
+  const incomeItems = summary?.items?.filter(i => i.item_type === "income") || [];
+  const expenseItems = summary?.items?.filter(i => i.item_type === "expense") || [];
+  const isProfit = (summary?.monthly_net || 0) >= 0;
+  const profitMarginPct = summary?.monthly_income > 0 ? (summary.monthly_net / summary.monthly_income) * 100 : 0;
+
+  const expenseSortGetValue = (row, col) => {
+    if (col === "company") return getCompanyName(row.company_id);
+    if (col === "category") return getCategoryLabel(row.category, "expense");
+    if (col === "monthly_eq") return row.frequency === "monthly" ? row.amount : row.amount / 12;
+    return row[col];
+  };
+  const incomeSortGetValue = (row, col) => {
+    if (col === "company") return getCompanyName(row.company_id);
+    if (col === "category") return getCategoryLabel(row.category, "income");
+    if (col === "monthly_eq") return row.frequency === "monthly" ? row.amount : row.amount / 12;
+    return row[col];
+  };
+  const expenseSort = useTableSort(expenseItems, { initialSort: { column: "amount", direction: "desc" }, getValue: expenseSortGetValue });
+  const incomeSort = useTableSort(incomeItems, { initialSort: { column: "amount", direction: "desc" }, getValue: incomeSortGetValue });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -245,10 +270,6 @@ export default function BudgetPage() {
       </div>
     );
   }
-
-  const incomeItems = summary?.items?.filter(i => i.item_type === "income") || [];
-  const expenseItems = summary?.items?.filter(i => i.item_type === "expense") || [];
-  const isProfit = (summary?.monthly_net || 0) >= 0;
 
   // Prepare chart data
   const comparisonData = [
@@ -258,86 +279,18 @@ export default function BudgetPage() {
 
   return (
     <div className="space-y-6" data-testid="budget-page">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nakit Akışı / Bütçe</h1>
-          <p className="text-muted-foreground mt-1">Düzenli gelir ve giderlerinizi planlayın</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Nakit Akışı / Bütçe"
+        subtitle="Düzenli gelir ve giderlerinizi planlayın"
+        icon={PiggyBank}
+      />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="stat-card" data-testid="monthly-income-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Aylık Gelir</CardTitle>
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold currency text-green-500 truncate">
-              {formatCurrency(summary?.monthly_income || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Yıllık: {formatCurrency(summary?.yearly_income || 0)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="stat-card" data-testid="monthly-expense-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Aylık Gider</CardTitle>
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <TrendingDown className="w-4 h-4 text-red-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold currency text-red-500 truncate">
-              {formatCurrency(summary?.monthly_expense || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Yıllık: {formatCurrency(summary?.yearly_expense || 0)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className={`stat-card border-2 ${isProfit ? "border-green-500/50" : "border-red-500/50"}`} data-testid="monthly-net-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Aylık Net</CardTitle>
-            <div className={`p-2 rounded-lg ${isProfit ? "bg-green-500/10" : "bg-red-500/10"}`}>
-              {isProfit ? <ArrowUpRight className="w-4 h-4 text-green-500" /> : <ArrowDownRight className="w-4 h-4 text-red-500" />}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-xl sm:text-2xl font-bold currency truncate ${isProfit ? "text-green-500" : "text-red-500"}`}>
-              {formatCurrency(summary?.monthly_net || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {isProfit ? "Kar" : "Zarar"} - Yıllık: {formatCurrency(summary?.yearly_net || 0)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="stat-card" data-testid="profit-margin-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Kar Marjı</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10">
-              <PiggyBank className="w-4 h-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${isProfit ? "text-green-500" : "text-red-500"}`}>
-              {summary?.monthly_income > 0 
-                ? `${((summary.monthly_net / summary.monthly_income) * 100).toFixed(1)}%`
-                : "0%"
-              }
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Gelire oranla
-            </p>
-          </CardContent>
-        </Card>
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard label="Aylık Gelir" value={summary?.monthly_income || 0} icon={TrendingUp} tone="success" hint={`Yıllık: ${formatCurrency(summary?.yearly_income || 0)}`} testId="monthly-income-card" />
+        <KpiCard label="Aylık Gider" value={summary?.monthly_expense || 0} icon={TrendingDown} tone="danger" hint={`Yıllık: ${formatCurrency(summary?.yearly_expense || 0)}`} testId="monthly-expense-card" />
+        <KpiCard label="Aylık Net" value={summary?.monthly_net || 0} icon={isProfit ? ArrowUpRight : ArrowDownRight} tone={isProfit ? "success" : "danger"} hint={`${isProfit ? "Kar" : "Zarar"} • Yıllık: ${formatCurrency(summary?.yearly_net || 0)}`} testId="monthly-net-card" />
+        <KpiCard label="Kar Marjı" value={`${profitMarginPct.toFixed(1)}%`} icon={PiggyBank} tone={isProfit ? "primary" : "danger"} format="raw" hint="Gelire oranla" testId="profit-margin-card" />
       </div>
 
       {/* Tabs */}
@@ -360,16 +313,17 @@ export default function BudgetPage() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={comparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `₺${(v / 1000).toFixed(0)}K`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" vertical={false} />
+                      <XAxis dataKey="name" stroke="hsl(var(--chart-axis))" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="hsl(var(--chart-axis))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `₺${(v / 1000).toFixed(0)}K`} />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                        cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
+                        contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px", boxShadow: "var(--shadow-lg)" }}
                         formatter={(value, name) => [formatCurrency(value), name]}
                       />
-                      <Legend />
-                      <Bar dataKey="gelir" name="Gelir" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="gider" name="Gider" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-xs text-muted-foreground">{v}</span>} />
+                      <Bar dataKey="gelir" name="Gelir" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} maxBarSize={48} />
+                      <Bar dataKey="gider" name="Gider" fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} maxBarSize={48} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -400,10 +354,10 @@ export default function BudgetPage() {
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
+                          contentStyle={{ backgroundColor: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: "8px", boxShadow: "var(--shadow-lg)" }}
                           formatter={(value, name) => [formatCurrency(value), getCategoryLabel(name, "expense")]}
                         />
-                        <Legend formatter={(value) => getCategoryLabel(value, "expense")} />
+                        <Legend iconType="circle" iconSize={8} formatter={(value) => <span className="text-xs text-muted-foreground">{getCategoryLabel(value, "expense")}</span>} />
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
@@ -438,18 +392,18 @@ export default function BudgetPage() {
                       .map((item) => {
                         const Icon = getCategoryIcon(item.category, "expense");
                         return (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-red-500/10">
-                                <Icon className="w-4 h-4 text-red-500" />
+                          <div key={item.id} className="flex items-center justify-between p-3 surface">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="kpi-icon kpi-icon-danger shrink-0">
+                                <Icon className="w-4 h-4" />
                               </div>
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-xs text-muted-foreground">{getCategoryLabel(item.category, "expense")}</p>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{item.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{getCategoryLabel(item.category, "expense")}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold currency text-red-500">{formatCurrency(item.amount, item.currency)}</p>
+                            <div className="text-right shrink-0 ml-2">
+                              <p className="font-bold currency text-tone-danger">{formatCurrency(item.amount, item.currency)}</p>
                               <p className="text-xs text-muted-foreground">{item.frequency === "monthly" ? "/ay" : "/yıl"}</p>
                             </div>
                           </div>
@@ -480,18 +434,18 @@ export default function BudgetPage() {
                       .map((item) => {
                         const Icon = getCategoryIcon(item.category, "income");
                         return (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-green-500/10">
-                                <Icon className="w-4 h-4 text-green-500" />
+                          <div key={item.id} className="flex items-center justify-between p-3 surface">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="kpi-icon kpi-icon-success shrink-0">
+                                <Icon className="w-4 h-4" />
                               </div>
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-xs text-muted-foreground">{getCategoryLabel(item.category, "income")}</p>
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{item.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{getCategoryLabel(item.category, "income")}</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold currency text-green-500">{formatCurrency(item.amount, item.currency)}</p>
+                            <div className="text-right shrink-0 ml-2">
+                              <p className="font-bold currency text-tone-success">{formatCurrency(item.amount, item.currency)}</p>
                               <p className="text-xs text-muted-foreground">{item.frequency === "monthly" ? "/ay" : "/yıl"}</p>
                             </div>
                           </div>
@@ -521,30 +475,24 @@ export default function BudgetPage() {
           </div>
 
           {expenseItems.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <TrendingDown className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Henüz düzenli gider yok</h3>
-                <p className="text-muted-foreground mt-1">Kira, fatura, maaş gibi düzenli giderlerinizi ekleyin</p>
-              </CardContent>
-            </Card>
+            <EmptyState icon={TrendingDown} title="Henüz düzenli gider yok" description="Kira, fatura, maaş gibi düzenli giderlerinizi ekleyin." />
           ) : (
             <div className="data-table">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>Gider Adı</TableHead>
-                    <TableHead>Firma</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Periyot</TableHead>
-                    <TableHead className="text-right">Tutar</TableHead>
-                    <TableHead className="text-right">Aylık Karşılık</TableHead>
+                    <SortableHead column="is_active" sort={expenseSort.sort} onSort={expenseSort.requestSort}>Durum</SortableHead>
+                    <SortableHead column="name" sort={expenseSort.sort} onSort={expenseSort.requestSort}>Gider Adı</SortableHead>
+                    <SortableHead column="company" sort={expenseSort.sort} onSort={expenseSort.requestSort}>Firma</SortableHead>
+                    <SortableHead column="category" sort={expenseSort.sort} onSort={expenseSort.requestSort}>Kategori</SortableHead>
+                    <SortableHead column="frequency" sort={expenseSort.sort} onSort={expenseSort.requestSort}>Periyot</SortableHead>
+                    <SortableHead column="amount" sort={expenseSort.sort} onSort={expenseSort.requestSort} align="right">Tutar</SortableHead>
+                    <SortableHead column="monthly_eq" sort={expenseSort.sort} onSort={expenseSort.requestSort} align="right">Aylık Karşılık</SortableHead>
                     <TableHead className="w-[100px]">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expenseItems.map((item) => (
+                  {expenseSort.sortedData.map((item) => (
                     <TableRow key={item.id} className={!item.is_active ? "opacity-50" : ""} data-testid={`expense-row-${item.id}`}>
                       <TableCell>
                         <Switch
@@ -559,7 +507,7 @@ export default function BudgetPage() {
                       <TableCell>
                         <Badge variant="outline">{item.frequency === "monthly" ? "Aylık" : "Yıllık"}</Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium currency text-red-500">
+                      <TableCell className="text-right font-semibold currency text-tone-danger">
                         {formatCurrency(item.amount, item.currency)}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground currency">
@@ -600,30 +548,24 @@ export default function BudgetPage() {
           </div>
 
           {incomeItems.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Henüz düzenli gelir yok</h3>
-                <p className="text-muted-foreground mt-1">Satış, hizmet, kira geliri gibi düzenli gelirlerinizi ekleyin</p>
-              </CardContent>
-            </Card>
+            <EmptyState icon={TrendingUp} title="Henüz düzenli gelir yok" description="Satış, hizmet, kira geliri gibi düzenli gelirlerinizi ekleyin." />
           ) : (
             <div className="data-table">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>Gelir Adı</TableHead>
-                    <TableHead>Firma</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Periyot</TableHead>
-                    <TableHead className="text-right">Tutar</TableHead>
-                    <TableHead className="text-right">Aylık Karşılık</TableHead>
+                    <SortableHead column="is_active" sort={incomeSort.sort} onSort={incomeSort.requestSort}>Durum</SortableHead>
+                    <SortableHead column="name" sort={incomeSort.sort} onSort={incomeSort.requestSort}>Gelir Adı</SortableHead>
+                    <SortableHead column="company" sort={incomeSort.sort} onSort={incomeSort.requestSort}>Firma</SortableHead>
+                    <SortableHead column="category" sort={incomeSort.sort} onSort={incomeSort.requestSort}>Kategori</SortableHead>
+                    <SortableHead column="frequency" sort={incomeSort.sort} onSort={incomeSort.requestSort}>Periyot</SortableHead>
+                    <SortableHead column="amount" sort={incomeSort.sort} onSort={incomeSort.requestSort} align="right">Tutar</SortableHead>
+                    <SortableHead column="monthly_eq" sort={incomeSort.sort} onSort={incomeSort.requestSort} align="right">Aylık Karşılık</SortableHead>
                     <TableHead className="w-[100px]">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {incomeItems.map((item) => (
+                  {incomeSort.sortedData.map((item) => (
                     <TableRow key={item.id} className={!item.is_active ? "opacity-50" : ""} data-testid={`income-row-${item.id}`}>
                       <TableCell>
                         <Switch
@@ -638,7 +580,7 @@ export default function BudgetPage() {
                       <TableCell>
                         <Badge variant="outline">{item.frequency === "monthly" ? "Aylık" : "Yıllık"}</Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium currency text-green-500">
+                      <TableCell className="text-right font-semibold currency text-tone-success">
                         {formatCurrency(item.amount, item.currency)}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground currency">

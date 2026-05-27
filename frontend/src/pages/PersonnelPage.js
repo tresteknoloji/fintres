@@ -31,8 +31,13 @@ import {
   TableRow
 } from "../components/ui/table";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users, Wallet, UserX, Banknote, Check, Filter, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Wallet, UserX, Banknote, Check, Filter, Eye, Hash } from "lucide-react";
 import { formatCurrency, formatDate, CURRENCIES } from "../lib/utils";
+import { PageHeader } from "../components/PageHeader";
+import { KpiCard } from "../components/KpiCard";
+import { SortableHead } from "../components/SortableHead";
+import { useTableSort } from "../hooks/useTableSort";
+import { EmptyState } from "../components/EmptyState";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -343,9 +348,38 @@ export default function PersonnelPage() {
     .filter(a => !a.is_paid_back)
     .reduce((sum, a) => sum + (a.currency === "TRY" ? a.amount : 0), 0);
 
-  const filteredPersonnel = statusFilter === "all" 
-    ? personnel 
+  const filteredPersonnel = statusFilter === "all"
+    ? personnel
     : personnel.filter(p => (p.status || "active") === statusFilter);
+
+  /* Sortable hooks for each table */
+  const personnelSort = useTableSort(filteredPersonnel, {
+    initialSort: { column: "name", direction: "asc" },
+    getValue: (row, col) => {
+      if (col === "company") return getCompanyName(row.company_id);
+      if (col === "status") return row.status || "active";
+      return row[col];
+    }
+  });
+  const advancesSort = useTableSort(advances, {
+    initialSort: { column: "date", direction: "desc" },
+    getValue: (row, col) => {
+      if (col === "personnel") return getPersonnelName(row.personnel_id);
+      if (col === "company") return getCompanyName(row.company_id);
+      if (col === "status") return row.is_paid_back ? 1 : 0;
+      return row[col];
+    }
+  });
+  const salariesSort = useTableSort(salaries, {
+    initialSort: { column: "payment_date", direction: "desc" },
+    getValue: (row, col) => {
+      if (col === "personnel") return getPersonnelName(row.personnel_id);
+      if (col === "company") return getCompanyName(row.company_id);
+      return row[col];
+    }
+  });
+
+  const activePersonnelCount = personnel.filter(p => (p.status || "active") === "active").length;
 
   if (loading) {
     return (
@@ -357,17 +391,11 @@ export default function PersonnelPage() {
 
   return (
     <div className="space-y-6" data-testid="personnel-page">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Personel</h1>
-          <p className="text-muted-foreground mt-1">Personel, maaş ve avans yönetimi</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Aktif Maaş Toplamı</p>
-            <p className="text-xl font-bold currency">{formatCurrency(totalSalary)}</p>
-          </div>
+      <PageHeader
+        title="Personel"
+        subtitle="Personel, maaş ve avans yönetimi"
+        icon={Users}
+        actions={
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
@@ -496,11 +524,18 @@ export default function PersonnelPage() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+        }
+      />
+
+      {/* KPI Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Aktif Personel" value={activePersonnelCount} icon={Users} tone="info" format="number" hint={`Toplam ${personnel.length} kayıt`} />
+        <KpiCard label="Aktif Maaş Toplamı" value={totalSalary} icon={Wallet} tone="primary" hint="Aylık (TRY)" />
+        <KpiCard label="Bekleyen Avans" value={totalPendingAdvances} icon={Banknote} tone="warning" hint="Geri ödenmemiş" />
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="personnel" className="space-y-6">
+      <Tabs defaultValue="personnel" className="space-y-4">
         <TabsList>
           <TabsTrigger value="personnel" data-testid="tab-personnel">Personel Listesi</TabsTrigger>
           <TabsTrigger value="advances" data-testid="tab-advances">Avanslar</TabsTrigger>
@@ -820,30 +855,24 @@ export default function PersonnelPage() {
 
           {/* Table */}
           {filteredPersonnel.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Henüz personel kaydı yok</h3>
-                <p className="text-muted-foreground mt-1">Yeni personel ekleyerek başlayın</p>
-              </CardContent>
-            </Card>
+            <EmptyState icon={Users} title="Personel kaydı yok" description={statusFilter === "all" ? "Yeni personel ekleyerek başlayın." : "Bu duruma uyan personel yok."} />
           ) : (
             <div className="data-table">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>Ad Soyad</TableHead>
-                    <TableHead>Firma</TableHead>
-                    <TableHead>Pozisyon</TableHead>
+                    <SortableHead column="status" sort={personnelSort.sort} onSort={personnelSort.requestSort}>Durum</SortableHead>
+                    <SortableHead column="name" sort={personnelSort.sort} onSort={personnelSort.requestSort}>Ad Soyad</SortableHead>
+                    <SortableHead column="company" sort={personnelSort.sort} onSort={personnelSort.requestSort}>Firma</SortableHead>
+                    <SortableHead column="position" sort={personnelSort.sort} onSort={personnelSort.requestSort}>Pozisyon</SortableHead>
                     <TableHead>İletişim</TableHead>
-                    <TableHead className="text-right">Maaş</TableHead>
-                    <TableHead>Başlangıç</TableHead>
+                    <SortableHead column="salary" sort={personnelSort.sort} onSort={personnelSort.requestSort} align="right">Maaş</SortableHead>
+                    <SortableHead column="start_date" sort={personnelSort.sort} onSort={personnelSort.requestSort}>Başlangıç</SortableHead>
                     <TableHead className="w-[180px]">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPersonnel.map((person) => {
+                  {personnelSort.sortedData.map((person) => {
                     const statusInfo = getStatusInfo(person.status || "active");
                     const personAdvances = advances.filter(a => a.personnel_id === person.id && !a.is_paid_back);
                     const totalAdvance = personAdvances.reduce((sum, a) => sum + a.amount, 0);
@@ -871,7 +900,7 @@ export default function PersonnelPage() {
                             {person.phone && <p className="text-muted-foreground">{person.phone}</p>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-medium currency">
+                        <TableCell className="text-right font-semibold currency">
                           {formatCurrency(person.salary, person.currency)}
                         </TableCell>
                         <TableCell>
@@ -919,37 +948,24 @@ export default function PersonnelPage() {
 
         {/* Advances Tab */}
         <TabsContent value="advances" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Bekleyen Avans Toplamı</p>
-              <p className="text-xl font-bold currency text-orange-500">{formatCurrency(totalPendingAdvances)}</p>
-            </div>
-          </div>
-
           {advances.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Banknote className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Henüz avans kaydı yok</h3>
-                <p className="text-muted-foreground mt-1">Personel listesinden avans verebilirsiniz</p>
-              </CardContent>
-            </Card>
+            <EmptyState icon={Banknote} title="Henüz avans kaydı yok" description="Personel listesinden avans verebilirsiniz." />
           ) : (
             <div className="data-table">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Durum</TableHead>
-                    <TableHead>Tarih</TableHead>
-                    <TableHead>Personel</TableHead>
-                    <TableHead>Firma</TableHead>
-                    <TableHead>Açıklama</TableHead>
-                    <TableHead className="text-right">Tutar</TableHead>
+                    <SortableHead column="status" sort={advancesSort.sort} onSort={advancesSort.requestSort}>Durum</SortableHead>
+                    <SortableHead column="date" sort={advancesSort.sort} onSort={advancesSort.requestSort}>Tarih</SortableHead>
+                    <SortableHead column="personnel" sort={advancesSort.sort} onSort={advancesSort.requestSort}>Personel</SortableHead>
+                    <SortableHead column="company" sort={advancesSort.sort} onSort={advancesSort.requestSort}>Firma</SortableHead>
+                    <SortableHead column="reason" sort={advancesSort.sort} onSort={advancesSort.requestSort}>Açıklama</SortableHead>
+                    <SortableHead column="amount" sort={advancesSort.sort} onSort={advancesSort.requestSort} align="right">Tutar</SortableHead>
                     <TableHead className="w-[100px]">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {advances.map((advance) => (
+                  {advancesSort.sortedData.map((advance) => (
                     <TableRow key={advance.id} data-testid={`advance-row-${advance.id}`}>
                       <TableCell>
                         <Badge variant="outline" className={advance.is_paid_back ? "badge-success" : "badge-warning"}>
@@ -960,7 +976,7 @@ export default function PersonnelPage() {
                       <TableCell className="font-medium">{getPersonnelName(advance.personnel_id)}</TableCell>
                       <TableCell>{getCompanyName(advance.company_id)}</TableCell>
                       <TableCell>{advance.reason || "-"}</TableCell>
-                      <TableCell className="text-right font-medium currency">
+                      <TableCell className="text-right font-semibold currency text-tone-warning">
                         {formatCurrency(advance.amount, advance.currency)}
                       </TableCell>
                       <TableCell>
@@ -986,35 +1002,29 @@ export default function PersonnelPage() {
         {/* Salaries Tab */}
         <TabsContent value="salaries" className="space-y-4">
           {salaries.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Wallet className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">Henüz maaş ödemesi yok</h3>
-                <p className="text-muted-foreground mt-1">Personel listesinden maaş ödemesi yapabilirsiniz</p>
-              </CardContent>
-            </Card>
+            <EmptyState icon={Wallet} title="Henüz maaş ödemesi yok" description="Personel listesinden maaş ödemesi yapabilirsiniz." />
           ) : (
             <div className="data-table">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Dönem</TableHead>
-                    <TableHead>Ödeme Tarihi</TableHead>
-                    <TableHead>Personel</TableHead>
-                    <TableHead>Firma</TableHead>
+                    <SortableHead column="period" sort={salariesSort.sort} onSort={salariesSort.requestSort}>Dönem</SortableHead>
+                    <SortableHead column="payment_date" sort={salariesSort.sort} onSort={salariesSort.requestSort}>Ödeme Tarihi</SortableHead>
+                    <SortableHead column="personnel" sort={salariesSort.sort} onSort={salariesSort.requestSort}>Personel</SortableHead>
+                    <SortableHead column="company" sort={salariesSort.sort} onSort={salariesSort.requestSort}>Firma</SortableHead>
                     <TableHead>Notlar</TableHead>
-                    <TableHead className="text-right">Tutar</TableHead>
+                    <SortableHead column="amount" sort={salariesSort.sort} onSort={salariesSort.requestSort} align="right">Tutar</SortableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {salaries.map((salary) => (
+                  {salariesSort.sortedData.map((salary) => (
                     <TableRow key={salary.id} data-testid={`salary-row-${salary.id}`}>
                       <TableCell className="font-medium">{salary.period}</TableCell>
                       <TableCell>{formatDate(salary.payment_date)}</TableCell>
                       <TableCell>{getPersonnelName(salary.personnel_id)}</TableCell>
                       <TableCell>{getCompanyName(salary.company_id)}</TableCell>
                       <TableCell>{salary.notes || "-"}</TableCell>
-                      <TableCell className="text-right font-medium currency">
+                      <TableCell className="text-right font-semibold currency">
                         {formatCurrency(salary.amount, salary.currency)}
                       </TableCell>
                     </TableRow>
