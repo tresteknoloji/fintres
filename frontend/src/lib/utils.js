@@ -99,3 +99,128 @@ export const REMINDER_CATEGORIES = [
   { value: "veri_merkezi", label: "Veri Merkezi" },
   { value: "diger", label: "Diğer" }
 ];
+
+/* ============================================================
+   Date range helpers (used by PeriodSelector + page filters)
+   All return { startDate: Date|null, endDate: Date|null }
+   ============================================================ */
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfDay(d) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+export function getPeriodRange(presetKey, customRange = null) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  switch (presetKey) {
+    case "this_month":
+      return {
+        startDate: startOfDay(new Date(year, month, 1)),
+        endDate: endOfDay(new Date(year, month + 1, 0))
+      };
+    case "last_month":
+      return {
+        startDate: startOfDay(new Date(year, month - 1, 1)),
+        endDate: endOfDay(new Date(year, month, 0))
+      };
+    case "this_quarter": {
+      const q = Math.floor(month / 3);
+      return {
+        startDate: startOfDay(new Date(year, q * 3, 1)),
+        endDate: endOfDay(new Date(year, q * 3 + 3, 0))
+      };
+    }
+    case "last_3_months":
+      return {
+        startDate: startOfDay(new Date(year, month - 2, 1)),
+        endDate: endOfDay(new Date(year, month + 1, 0))
+      };
+    case "this_year":
+      return {
+        startDate: startOfDay(new Date(year, 0, 1)),
+        endDate: endOfDay(new Date(year, 11, 31))
+      };
+    case "last_year":
+      return {
+        startDate: startOfDay(new Date(year - 1, 0, 1)),
+        endDate: endOfDay(new Date(year - 1, 11, 31))
+      };
+    case "custom":
+      if (customRange?.startDate && customRange?.endDate) {
+        return {
+          startDate: startOfDay(customRange.startDate),
+          endDate: endOfDay(customRange.endDate)
+        };
+      }
+      return { startDate: null, endDate: null };
+    case "all":
+    default:
+      return { startDate: null, endDate: null };
+  }
+}
+
+export const PERIOD_PRESETS = [
+  { key: "this_month", label: "Bu Ay" },
+  { key: "last_month", label: "Geçen Ay" },
+  { key: "this_quarter", label: "Bu Çeyrek" },
+  { key: "last_3_months", label: "Son 3 Ay" },
+  { key: "this_year", label: "Bu Yıl" },
+  { key: "last_year", label: "Geçen Yıl" },
+  { key: "all", label: "Tüm Zamanlar" }
+];
+
+export function isWithinRange(dateStr, startDate, endDate) {
+  if (!startDate && !endDate) return true;
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (startDate && d < startDate) return false;
+  if (endDate && d > endDate) return false;
+  return true;
+}
+
+export function formatDateShort(date) {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(date);
+}
+
+/* ============================================================
+   Sort helper — used by useTableSort hook
+   ============================================================ */
+
+export function compareValues(a, b, direction = "asc") {
+  // null/undefined go to the end regardless of direction
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+
+  let result;
+  if (typeof a === "number" && typeof b === "number") {
+    result = a - b;
+  } else if (a instanceof Date && b instanceof Date) {
+    result = a.getTime() - b.getTime();
+  } else {
+    // Try date parse first
+    const ad = Date.parse(a);
+    const bd = Date.parse(b);
+    if (!isNaN(ad) && !isNaN(bd) && typeof a === "string" && a.match(/\d{4}-\d{2}-\d{2}/)) {
+      result = ad - bd;
+    } else {
+      result = String(a).localeCompare(String(b), "tr", { numeric: true });
+    }
+  }
+  return direction === "desc" ? -result : result;
+}
