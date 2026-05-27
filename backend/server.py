@@ -591,15 +591,27 @@ async def send_email(to_email: str, subject: str, html_content: str):
         return False
     
     try:
+        import email.utils
+        import re
+        
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = f"{settings['sender_name']} <{settings['sender_email']}>"
         msg['To'] = to_email
+        msg['Date'] = email.utils.formatdate(localtime=True)
+        msg['Message-ID'] = email.utils.make_msgid(domain=settings['sender_email'].split('@')[-1])
         
+        # HTML'den plain text oluştur
+        plain_text = re.sub(r'<[^>]+>', '', html_content)
+        plain_text = re.sub(r'\s+', ' ', plain_text).strip()
+        plain_text = re.sub(r' {2,}', '\n', plain_text)
+        
+        # Önce text/plain, sonra text/html (RFC standartı)
+        text_part = MIMEText(plain_text, 'plain', 'utf-8')
         html_part = MIMEText(html_content, 'html', 'utf-8')
+        msg.attach(text_part)
         msg.attach(html_part)
         
-        # Senkron SMTP işlemini thread pool'da çalıştır (ana event loop'u bloklamaz)
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, _send_smtp, settings, to_email, msg)
         
