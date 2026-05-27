@@ -144,7 +144,7 @@ export default function CompaniesPage() {
                   data-testid="company-address-input"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefon</Label>
                   <Input
@@ -185,7 +185,7 @@ export default function CompaniesPage() {
       {companies.length === 0 ? (
         <EmptyState icon={Building2} title="Henüz firma eklenmemiş" description="Başlamak için yeni bir firma ekleyin." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {companies.map((company) => {
             const isActive = selectedCompany?.id === company.id;
             return (

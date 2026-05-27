@@ -65,6 +65,7 @@ export default function BankCardsPage() {
   const [summary, setSummary] = useState(null);
   const [debtSummary, setDebtSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("accounts");
 
   const [accountDialog, setAccountDialog] = useState(false);
   const [kmhDialog, setKmhDialog] = useState(false);
@@ -91,7 +92,6 @@ export default function BankCardsPage() {
   useEffect(() => { fetchAll(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedCompany]);
 
   const fetchAll = async () => {
-    setLoading(true);
     try {
       const params = selectedCompany ? { company_id: selectedCompany.id } : {};
       const [accRes, kmhRes, cardRes, loanRes, sumRes, debtRes] = await Promise.all([
@@ -279,7 +279,7 @@ export default function BankCardsPage() {
       />
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <KpiCard label="Toplam Vadesiz" value={summary?.total_balance || 0} icon={Landmark} tone="success" hint={`${summary?.account_count || 0} hesap`} testId="total-balance-card" />
         <KpiCard label="KMH Kullanılabilir" value={summary?.total_kmh_available || 0} icon={Wallet} tone="info" hint={`${summary?.kmh_count || 0} KMH`} testId="total-kmh-limit-card" />
         <KpiCard label="Kart Limiti" value={summary?.total_card_limit || 0} icon={CreditCard} tone="primary" hint={`${summary?.card_count || 0} kart`} testId="total-card-limit-card" />
@@ -287,7 +287,7 @@ export default function BankCardsPage() {
         <KpiCard label="Aktif Krediler" value={loans.length} icon={Banknote} tone="danger" format="number" testId="total-loans-card" />
       </div>
 
-      <Tabs defaultValue="accounts" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="accounts" data-testid="tab-accounts"><Landmark className="w-4 h-4 mr-2" />Hesaplar ({accounts.length})</TabsTrigger>
           <TabsTrigger value="kmh" data-testid="tab-kmh"><Wallet className="w-4 h-4 mr-2" />KMH ({kmhAccounts.length})</TabsTrigger>
@@ -482,7 +482,7 @@ export default function BankCardsPage() {
         <TabsContent value="debt" className="space-y-4">
           {debtSummary && (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <KpiCard label="Toplam Borç" value={debtSummary.total_debt} icon={AlertCircle} tone="danger" hint="Tüm hesaplar" />
                 <KpiCard label="KMH Borcu" value={debtSummary.total_kmh_debt} icon={Wallet} tone="info" />
                 <KpiCard label="Kredi Kartı Borcu" value={debtSummary.total_card_debt} icon={CreditCard} tone="primary" />
@@ -541,7 +541,7 @@ export default function BankCardsPage() {
 
       {/* Account Dialog */}
       <Dialog open={accountDialog} onOpenChange={setAccountDialog}><DialogContent><DialogHeader><DialogTitle>{editingAccount ? "Hesap Düzenle" : "Yeni Banka Hesabı"}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSaveAccount} className="space-y-4"><div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSaveAccount} className="space-y-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2"><Label>Firma *</Label><Select value={accountForm.company_id} onValueChange={(v) => setAccountForm({ ...accountForm, company_id: v })}><SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger><SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Banka Adı *</Label><Input value={accountForm.bank_name} onChange={(e) => setAccountForm({ ...accountForm, bank_name: e.target.value })} placeholder="Örn: Garanti BBVA" /></div>
           <div className="space-y-2"><Label>Hesap Adı</Label><Input value={accountForm.account_name} onChange={(e) => setAccountForm({ ...accountForm, account_name: e.target.value })} placeholder="Örn: Vadesiz TL" /></div>
@@ -553,7 +553,7 @@ export default function BankCardsPage() {
 
       {/* KMH Dialog */}
       <Dialog open={kmhDialog} onOpenChange={setKmhDialog}><DialogContent><DialogHeader><DialogTitle>{editingKmh ? "KMH Düzenle" : "Yeni KMH Hesabı"}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSaveKmh} className="space-y-4"><div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSaveKmh} className="space-y-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2"><Label>Firma *</Label><Select value={kmhForm.company_id} onValueChange={(v) => setKmhForm({ ...kmhForm, company_id: v })}><SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger><SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Banka Adı *</Label><Input value={kmhForm.bank_name} onChange={(e) => setKmhForm({ ...kmhForm, bank_name: e.target.value })} placeholder="Örn: İş Bankası" /></div>
           <div className="space-y-2"><Label>Hesap Adı</Label><Input value={kmhForm.account_name} onChange={(e) => setKmhForm({ ...kmhForm, account_name: e.target.value })} /></div>
@@ -565,7 +565,7 @@ export default function BankCardsPage() {
 
       {/* Card Dialog */}
       <Dialog open={cardDialog} onOpenChange={setCardDialog}><DialogContent><DialogHeader><DialogTitle>{editingCard ? "Kart Düzenle" : "Yeni Kredi Kartı"}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSaveCard} className="space-y-4"><div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSaveCard} className="space-y-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2"><Label>Firma *</Label><Select value={cardForm.company_id} onValueChange={(v) => setCardForm({ ...cardForm, company_id: v })}><SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger><SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Banka Adı *</Label><Input value={cardForm.bank_name} onChange={(e) => setCardForm({ ...cardForm, bank_name: e.target.value })} placeholder="Örn: Yapı Kredi" /></div>
           <div className="space-y-2"><Label>Kart Adı</Label><Input value={cardForm.card_name} onChange={(e) => setCardForm({ ...cardForm, card_name: e.target.value })} /></div>
@@ -580,7 +580,7 @@ export default function BankCardsPage() {
 
       {/* Loan Dialog */}
       <Dialog open={loanDialog} onOpenChange={setLoanDialog}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Yeni Kredi Ekle</DialogTitle></DialogHeader>
-        <form onSubmit={handleSaveLoan} className="space-y-4"><div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSaveLoan} className="space-y-4"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2"><Label>Firma *</Label><Select value={loanForm.company_id} onValueChange={(v) => setLoanForm({ ...loanForm, company_id: v })}><SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger><SelectContent>{companies.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Banka Adı *</Label><Input value={loanForm.bank_name} onChange={(e) => setLoanForm({ ...loanForm, bank_name: e.target.value })} placeholder="Örn: Ziraat Bankası" /></div>
           <div className="space-y-2"><Label>Kredi Adı</Label><Input value={loanForm.loan_name} onChange={(e) => setLoanForm({ ...loanForm, loan_name: e.target.value })} placeholder="Örn: İhtiyaç Kredisi" /></div>

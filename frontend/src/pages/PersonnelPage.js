@@ -62,6 +62,7 @@ export default function PersonnelPage() {
   const [selectedPersonnel, setSelectedPersonnel] = useState(null);
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("personnel");
 
   const [form, setForm] = useState({
     company_id: "",
@@ -424,7 +425,7 @@ export default function PersonnelPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Ad Soyad *</Label>
                     <Input
@@ -444,7 +445,7 @@ export default function PersonnelPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>E-posta</Label>
                     <Input
@@ -465,7 +466,7 @@ export default function PersonnelPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Maaş *</Label>
                     <Input
@@ -491,7 +492,7 @@ export default function PersonnelPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>İşe Başlama Tarihi *</Label>
                     <Input
@@ -528,14 +529,14 @@ export default function PersonnelPage() {
       />
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <KpiCard label="Aktif Personel" value={activePersonnelCount} icon={Users} tone="info" format="number" hint={`Toplam ${personnel.length} kayıt`} />
         <KpiCard label="Aktif Maaş Toplamı" value={totalSalary} icon={Wallet} tone="primary" hint="Aylık (TRY)" />
         <KpiCard label="Bekleyen Avans" value={totalPendingAdvances} icon={Banknote} tone="warning" hint="Geri ödenmemiş" />
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="personnel" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="personnel" data-testid="tab-personnel">Personel Listesi</TabsTrigger>
           <TabsTrigger value="advances" data-testid="tab-advances">Avanslar</TabsTrigger>
@@ -572,7 +573,7 @@ export default function PersonnelPage() {
                 <DialogTitle>Maaş Ödemesi - {selectedPersonnel?.name}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSalarySubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tutar *</Label>
                     <Input
@@ -598,7 +599,7 @@ export default function PersonnelPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Dönem (Ay) *</Label>
                     <Input
@@ -644,7 +645,7 @@ export default function PersonnelPage() {
                 <DialogTitle>Avans Ver - {selectedPersonnel?.name}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAdvanceSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tutar *</Label>
                     <Input

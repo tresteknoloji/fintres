@@ -54,7 +54,7 @@ export default function ExpensesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [period, setPeriod] = useState(() => defaultPeriodValue("this_year"));
+  const [period, setPeriod] = useState(() => defaultPeriodValue("this_month"));
   const [form, setForm] = useState({
     company_id: "",
     description: "",
@@ -214,7 +214,7 @@ export default function ExpensesPage() {
                   <Label>Açıklama *</Label>
                   <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Gider açıklaması" data-testid="expense-description" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tutar *</Label>
                     <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" data-testid="expense-amount" />
@@ -229,7 +229,7 @@ export default function ExpensesPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Kategori *</Label>
                     <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
@@ -276,7 +276,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <KpiCard label="Toplam Gider" value={totalExpense} icon={TrendingDown} tone="danger" hint="Seçili dönem (TRY)" />
         <KpiCard label="Kayıt Sayısı" value={filteredExpenses.length} icon={Hash} tone="info" format="number" hint="Seçili dönem" />
         <KpiCard label="Ortalama Tutar" value={avgExpense} icon={Calendar} tone="warning" hint="Kayıt başına ortalama" />

@@ -57,14 +57,14 @@ export function KpiCard({
 
   return (
     <Card className="stat-card" data-testid={testId}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">{label}</p>
-          <p className={cn("text-2xl font-bold mt-2 currency truncate", toneTextClass, valueClassName)}>
+          <p className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-muted-foreground leading-tight">{label}</p>
+          <p className={cn("text-lg sm:text-xl md:text-2xl font-bold mt-1.5 sm:mt-2 currency truncate", toneTextClass, valueClassName)}>
             {formattedValue}
           </p>
           {(hint || trend) && (
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 mt-1.5 sm:mt-2 text-[11px] sm:text-xs text-muted-foreground">
               {trend && (
                 <span
                   className={cn(
@@ -86,7 +86,7 @@ export function KpiCard({
         </div>
         {Icon && (
           <div className={cn("kpi-icon shrink-0", iconBg)}>
-            <Icon className="w-5 h-5" />
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         )}
       </div>

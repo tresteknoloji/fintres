@@ -285,7 +285,7 @@ export default function RemindersPage() {
                     data-testid="reminder-description"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tutar *</Label>
                     <Input
@@ -311,7 +311,7 @@ export default function RemindersPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Vade Tarihi *</Label>
                     <Input
@@ -373,7 +373,7 @@ export default function RemindersPage() {
       />
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <KpiCard label="Bekleyen Toplam" value={pendingTotal} icon={Clock} tone="warning" hint={`${pendingCount} hatırlatıcı (TRY)`} />
         <KpiCard label="Gecikmiş" value={overdueCount} icon={AlertCircle} tone="danger" format="number" hint="Vadesi geçen" />
         <KpiCard label="Ödendi" value={paidCount} icon={Check} tone="success" format="number" hint={`Toplam ${reminders.length} kayıt`} />
@@ -484,7 +484,7 @@ export default function RemindersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Ödeme Tarihi *</Label>
                   <Input

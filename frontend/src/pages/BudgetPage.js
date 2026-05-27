@@ -286,7 +286,7 @@ export default function BudgetPage() {
       />
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard label="Aylık Gelir" value={summary?.monthly_income || 0} icon={TrendingUp} tone="success" hint={`Yıllık: ${formatCurrency(summary?.yearly_income || 0)}`} testId="monthly-income-card" />
         <KpiCard label="Aylık Gider" value={summary?.monthly_expense || 0} icon={TrendingDown} tone="danger" hint={`Yıllık: ${formatCurrency(summary?.yearly_expense || 0)}`} testId="monthly-expense-card" />
         <KpiCard label="Aylık Net" value={summary?.monthly_net || 0} icon={isProfit ? ArrowUpRight : ArrowDownRight} tone={isProfit ? "success" : "danger"} hint={`${isProfit ? "Kar" : "Zarar"} • Yıllık: ${formatCurrency(summary?.yearly_net || 0)}`} testId="monthly-net-card" />
@@ -642,7 +642,7 @@ export default function BudgetPage() {
                 data-testid="budget-name"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tutar *</Label>
                 <Input
@@ -668,7 +668,7 @@ export default function BudgetPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Kategori *</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>

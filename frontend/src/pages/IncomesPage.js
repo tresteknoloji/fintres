@@ -53,7 +53,7 @@ export default function IncomesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [period, setPeriod] = useState(() => defaultPeriodValue("this_year"));
+  const [period, setPeriod] = useState(() => defaultPeriodValue("this_month"));
   const [form, setForm] = useState({
     company_id: "",
     description: "",
@@ -217,7 +217,7 @@ export default function IncomesPage() {
                   <Label>Açıklama *</Label>
                   <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Gelir açıklaması" data-testid="income-description" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Tutar *</Label>
                     <Input type="number" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" data-testid="income-amount" />
@@ -232,7 +232,7 @@ export default function IncomesPage() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Kategori *</Label>
                     <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
@@ -270,7 +270,7 @@ export default function IncomesPage() {
       </div>
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <KpiCard label="Toplam Gelir" value={totalIncome} icon={TrendingUp} tone="success" hint="Seçili dönem (TRY)" />
         <KpiCard label="Kayıt Sayısı" value={filteredIncomes.length} icon={Hash} tone="info" format="number" hint="Seçili dönem" />
         <KpiCard label="Ortalama Tutar" value={avgIncome} icon={Calendar} tone="primary" hint="Kayıt başına ortalama" />
