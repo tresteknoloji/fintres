@@ -84,9 +84,9 @@
     @apply border-b-0;
 }
 
-/* Sortable column header */
+/* Sortable column header — add `group` class on the element to enable child hover state */
 .sortable-th {
-    @apply cursor-pointer select-none group transition-colors;
+    @apply cursor-pointer select-none transition-colors;
 }
 
 .sortable-th:hover {

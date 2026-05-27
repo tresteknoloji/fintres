@@ -31,7 +31,7 @@ export function SortableHead({
   return (
     <TableHead
       className={cn(
-        "sortable-th",
+        "sortable-th group",
         align === "right" && "text-right",
         align === "center" && "text-center",
         className
