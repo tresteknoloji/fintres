@@ -1,16 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { useCompany } from "../context/CompanyContext";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { formatCurrency, getMonthName, EXPENSE_CATEGORIES } from "../lib/utils";
+import { KpiCard } from "../components/KpiCard";
+import { PageHeader } from "../components/PageHeader";
+import { PeriodSelector, defaultPeriodValue } from "../components/PeriodSelector";
+import {
+  formatCurrency,
+  getMonthName,
+  isWithinRange,
+  EXPENSE_CATEGORIES
+} from "../lib/utils";
 import {
   TrendingUp,
   TrendingDown,
   Users,
   Bell,
-  ArrowUpRight,
-  ArrowDownRight,
-  Wallet
+  Wallet,
+  Activity
 } from "lucide-react";
 import {
   BarChart,
@@ -28,27 +35,102 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const COLORS = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6", "#06b6d4"];
+const PIE_COLORS = ["#6366f1", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#84cc16"];
 
 export default function DashboardPage() {
   const { selectedCompany } = useCompany();
   const [stats, setStats] = useState(null);
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState(() => defaultPeriodValue("this_year"));
 
   useEffect(() => {
-    fetchStats();
+    fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompany]);
 
-  const fetchStats = async () => {
+  const fetchAll = async () => {
+    setLoading(true);
     try {
       const params = selectedCompany ? { company_id: selectedCompany.id } : {};
-      const response = await axios.get(`${API}/dashboard/stats`, { params });
-      setStats(response.data);
+      const [statsRes, incRes, expRes] = await Promise.all([
+        axios.get(`${API}/dashboard/stats`, { params }),
+        axios.get(`${API}/incomes`, { params }),
+        axios.get(`${API}/expenses`, { params })
+      ]);
+      setStats(statsRes.data);
+      setIncomes(incRes.data || []);
+      setExpenses(expRes.data || []);
     } catch (error) {
-      console.error("Error fetching stats:", error);
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  /* --- Client-side filtered aggregates --- */
+  const filteredIncomes = useMemo(
+    () => incomes.filter((i) => isWithinRange(i.date, period.startDate, period.endDate)),
+    [incomes, period]
+  );
+  const filteredExpenses = useMemo(
+    () => expenses.filter((e) => isWithinRange(e.date, period.startDate, period.endDate)),
+    [expenses, period]
+  );
+
+  const totalIncome = useMemo(
+    () => filteredIncomes.reduce((s, i) => s + (i.currency === "TRY" ? Number(i.amount) || 0 : 0), 0),
+    [filteredIncomes]
+  );
+  const totalExpense = useMemo(
+    () => filteredExpenses.reduce((s, e) => s + (e.currency === "TRY" ? Number(e.amount) || 0 : 0), 0),
+    [filteredExpenses]
+  );
+  const netBalance = totalIncome - totalExpense;
+
+  /* Monthly chart from filtered data */
+  const monthlyChart = useMemo(() => {
+    const map = {};
+    filteredIncomes.forEach((i) => {
+      if (i.currency !== "TRY") return;
+      const m = i.date?.slice(0, 7);
+      if (!m) return;
+      if (!map[m]) map[m] = { month: m, income: 0, expense: 0 };
+      map[m].income += Number(i.amount) || 0;
+    });
+    filteredExpenses.forEach((e) => {
+      if (e.currency !== "TRY") return;
+      const m = e.date?.slice(0, 7);
+      if (!m) return;
+      if (!map[m]) map[m] = { month: m, income: 0, expense: 0 };
+      map[m].expense += Number(e.amount) || 0;
+    });
+    return Object.values(map)
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .map((m) => ({ ...m, name: getMonthName(m.month) }));
+  }, [filteredIncomes, filteredExpenses]);
+
+  /* Expense categories pie */
+  const expenseCategories = useMemo(() => {
+    const map = {};
+    filteredExpenses.forEach((e) => {
+      if (e.currency !== "TRY") return;
+      const cat = e.category || "diger";
+      if (!map[cat]) map[cat] = 0;
+      map[cat] += Number(e.amount) || 0;
+    });
+    return Object.entries(map)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredExpenses]);
+
+  const tooltipStyle = {
+    backgroundColor: "hsl(var(--popover))",
+    border: "1px solid hsl(var(--border))",
+    borderRadius: "8px",
+    boxShadow: "var(--shadow-lg)",
+    color: "hsl(var(--popover-foreground))"
   };
 
   if (loading) {
@@ -59,210 +141,187 @@ export default function DashboardPage() {
     );
   }
 
-  const chartData = stats?.monthly_chart?.map(item => ({
-    ...item,
-    name: getMonthName(item.month)
-  })) || [];
-
   return (
-    <div className="space-y-8" data-testid="dashboard-page">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Finansal Özet</h1>
-        <p className="text-muted-foreground mt-1">
-          {selectedCompany ? selectedCompany.name : "Tüm Firmalar"} - Genel Bakış
-        </p>
+    <div className="space-y-6" data-testid="dashboard-page">
+      <PageHeader
+        title="Finansal Özet"
+        subtitle={`${selectedCompany ? selectedCompany.name : "Tüm Firmalar"} • Genel Bakış`}
+        icon={Activity}
+      />
+
+      {/* Period Selector */}
+      <div className="surface p-3 flex items-center gap-3 overflow-x-auto">
+        <span className="text-xs uppercase tracking-wider font-semibold text-muted-foreground shrink-0 pl-1">Dönem</span>
+        <PeriodSelector value={period} onChange={setPeriod} />
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="stat-card" data-testid="stat-income">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Toplam Gelir</CardTitle>
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold currency text-green-500">
-              {formatCurrency(stats?.total_income || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3 text-green-500" />
-              Bu dönem toplam
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="stat-card" data-testid="stat-expense">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Toplam Gider</CardTitle>
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <TrendingDown className="w-4 h-4 text-red-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold currency text-red-500">
-              {formatCurrency(stats?.total_expense || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <ArrowDownRight className="w-3 h-3 text-red-500" />
-              Bu dönem toplam
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="stat-card" data-testid="stat-balance">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Net Bakiye</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Wallet className="w-4 h-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold currency ${(stats?.net_balance || 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
-              {formatCurrency(stats?.net_balance || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Gelir - Gider
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="stat-card" data-testid="stat-reminders">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Bekleyen Ödemeler</CardTitle>
-            <div className="p-2 rounded-lg bg-yellow-500/10">
-              <Bell className="w-4 h-4 text-yellow-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.pending_reminders || 0}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ödeme hatırlatıcısı
-            </p>
-          </CardContent>
-        </Card>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Toplam Gelir"
+          value={totalIncome}
+          icon={TrendingUp}
+          tone="success"
+          hint="Seçili dönem (TRY)"
+          testId="stat-income"
+        />
+        <KpiCard
+          label="Toplam Gider"
+          value={totalExpense}
+          icon={TrendingDown}
+          tone="danger"
+          hint="Seçili dönem (TRY)"
+          testId="stat-expense"
+        />
+        <KpiCard
+          label="Net Bakiye"
+          value={netBalance}
+          icon={Wallet}
+          tone={netBalance >= 0 ? "success" : "danger"}
+          hint="Gelir − Gider"
+          testId="stat-balance"
+        />
+        <KpiCard
+          label="Bekleyen Ödemeler"
+          value={stats?.pending_reminders || 0}
+          icon={Bell}
+          tone="warning"
+          format="number"
+          hint="Aktif hatırlatıcı"
+          testId="stat-reminders"
+        />
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Monthly Chart */}
-        <Card className="lg:col-span-2" data-testid="monthly-chart">
-          <CardHeader>
-            <CardTitle>Aylık Gelir/Gider</CardTitle>
+        <Card className="lg:col-span-2 shadow-card" data-testid="monthly-chart">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Aylık Gelir / Gider</CardTitle>
+              <span className="text-xs text-muted-foreground">{monthlyChart.length} ay</span>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 19%, 20%)" />
-                  <XAxis
-                    dataKey="name"
-                    stroke="hsl(215, 20%, 65%)"
-                    fontSize={12}
-                  />
-                  <YAxis
-                    stroke="hsl(215, 20%, 65%)"
-                    fontSize={12}
-                    tickFormatter={(value) => `₺${(value / 1000).toFixed(0)}K`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(230, 25%, 10%)",
-                      borderColor: "hsl(217, 19%, 20%)",
-                      borderRadius: "8px"
-                    }}
-                    formatter={(value, name) => [formatCurrency(value), name]}
-                  />
-                  <Bar dataKey="income" name="Gelir" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name="Gider" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-[320px]">
+              {monthlyChart.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                  Seçili dönemde veri yok
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyChart} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" vertical={false} />
+                    <XAxis dataKey="name" stroke="hsl(var(--chart-axis))" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis
+                      stroke="hsl(var(--chart-axis))"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `₺${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
+                      contentStyle={tooltipStyle}
+                      formatter={(value, name) => [formatCurrency(value), name]}
+                    />
+                    <Bar dataKey="income" name="Gelir" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="expense" name="Gider" fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Expense Categories */}
-        <Card data-testid="expense-categories-chart">
-          <CardHeader>
-            <CardTitle>Gider Dağılımı</CardTitle>
+        <Card className="shadow-card" data-testid="expense-categories-chart">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Gider Dağılımı</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats?.expense_categories || []}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {(stats?.expense_categories || []).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(230, 25%, 10%)",
-                      borderColor: "hsl(217, 19%, 20%)",
-                      borderRadius: "8px"
-                    }}
-                    formatter={(value, name) => {
-                      const cat = EXPENSE_CATEGORIES.find(c => c.value === name);
-                      return [formatCurrency(value), cat?.label || name];
-                    }}
-                  />
-                  <Legend
-                    formatter={(value) => {
-                      const cat = EXPENSE_CATEGORIES.find(c => c.value === value);
-                      return <span className="text-sm text-muted-foreground">{cat?.label || value}</span>;
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="h-[320px]">
+              {expenseCategories.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                  Seçili dönemde gider yok
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={expenseCategories}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {expenseCategories.map((_, idx) => (
+                        <Cell key={`cell-${idx}`} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      formatter={(value, name) => {
+                        const cat = EXPENSE_CATEGORIES.find((c) => c.value === name);
+                        return [formatCurrency(value), cat?.label || name];
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      formatter={(value) => {
+                        const cat = EXPENSE_CATEGORIES.find((c) => c.value === value);
+                        return <span className="text-xs text-muted-foreground">{cat?.label || value}</span>;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Personnel & Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card data-testid="personnel-stat">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Personel</CardTitle>
-            <Users className="w-5 h-5 text-muted-foreground" />
+      {/* Bottom Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="shadow-card" data-testid="personnel-stat">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-base font-semibold">Personel</CardTitle>
+            <div className="kpi-icon kpi-icon-info">
+              <Users className="w-5 h-5" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{stats?.total_personnel || 0}</div>
-            <p className="text-muted-foreground">Aktif personel sayısı</p>
+            <div className="text-4xl font-bold tabular">{stats?.total_personnel || 0}</div>
+            <p className="text-sm text-muted-foreground mt-1">Aktif personel sayısı (genel)</p>
           </CardContent>
         </Card>
 
-        <Card data-testid="summary-stat">
-          <CardHeader>
-            <CardTitle>Özet Bilgiler</CardTitle>
+        <Card className="shadow-card" data-testid="summary-stat">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold">Seçili Dönem Özeti</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Toplam Gelir</span>
-              <span className="font-medium currency text-green-500">{formatCurrency(stats?.total_income || 0)}</span>
+              <span className="text-sm text-muted-foreground">Toplam Gelir</span>
+              <span className="font-semibold currency text-tone-success">{formatCurrency(totalIncome)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Toplam Gider</span>
-              <span className="font-medium currency text-red-500">{formatCurrency(stats?.total_expense || 0)}</span>
+              <span className="text-sm text-muted-foreground">Toplam Gider</span>
+              <span className="font-semibold currency text-tone-danger">{formatCurrency(totalExpense)}</span>
             </div>
-            <div className="h-px bg-border" />
+            <div className="subtle-divider" />
             <div className="flex justify-between items-center">
-              <span className="font-medium">Net Bakiye</span>
-              <span className={`font-bold currency ${(stats?.net_balance || 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
-                {formatCurrency(stats?.net_balance || 0)}
+              <span className="font-semibold text-sm">Net Bakiye</span>
+              <span className={`font-bold currency ${netBalance >= 0 ? "text-tone-success" : "text-tone-danger"}`}>
+                {formatCurrency(netBalance)}
               </span>
+            </div>
+            <div className="flex justify-between items-center text-xs text-muted-foreground pt-1">
+              <span>{filteredIncomes.length} gelir kaydı</span>
+              <span>{filteredExpenses.length} gider kaydı</span>
             </div>
           </CardContent>
         </Card>
