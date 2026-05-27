@@ -33,6 +33,11 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Bell, Check, AlertCircle, Clock } from "lucide-react";
 import { formatCurrency, formatDate, CURRENCIES, REMINDER_CATEGORIES } from "../lib/utils";
+import { PageHeader } from "../components/PageHeader";
+import { KpiCard } from "../components/KpiCard";
+import { SortableHead } from "../components/SortableHead";
+import { useTableSort } from "../hooks/useTableSort";
+import { EmptyState } from "../components/EmptyState";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -207,8 +212,17 @@ export default function RemindersPage() {
       if (filter === "overdue") return !r.is_paid && new Date(r.due_date) < new Date();
       return true;
     })
-    .filter(r => categoryFilter === "all" ? true : r.category === categoryFilter)
-    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+    .filter(r => categoryFilter === "all" ? true : r.category === categoryFilter);
+
+  const remindersSort = useTableSort(filteredReminders, {
+    initialSort: { column: "due_date", direction: "asc" },
+    getValue: (row, col) => {
+      if (col === "company") return getCompanyName(row.company_id);
+      if (col === "category") return getCategoryLabel(row.category);
+      if (col === "status") return row.is_paid ? 2 : (new Date(row.due_date) < new Date() ? 0 : 1);
+      return row[col];
+    }
+  });
 
   if (loading) {
     return (
@@ -220,17 +234,11 @@ export default function RemindersPage() {
 
   return (
     <div className="space-y-6" data-testid="reminders-page">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ödeme Hatırlatıcıları</h1>
-          <p className="text-muted-foreground mt-1">Yaklaşan ödemeler ve takibi</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Bekleyen Toplam (TRY)</p>
-            <p className="text-xl font-bold currency text-yellow-500">{formatCurrency(pendingTotal)}</p>
-          </div>
+      <PageHeader
+        title="Ödeme Hatırlatıcıları"
+        subtitle="Yaklaşan ödemeler ve takibi"
+        icon={Bell}
+        actions={
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) resetForm();
@@ -361,12 +369,18 @@ export default function RemindersPage() {
               </form>
             </DialogContent>
           </Dialog>
-        </div>
+        }
+      />
+
+      {/* KPI Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard label="Bekleyen Toplam" value={pendingTotal} icon={Clock} tone="warning" hint={`${pendingCount} hatırlatıcı (TRY)`} />
+        <KpiCard label="Gecikmiş" value={overdueCount} icon={AlertCircle} tone="danger" format="number" hint="Vadesi geçen" />
+        <KpiCard label="Ödendi" value={paidCount} icon={Check} tone="success" format="number" hint={`Toplam ${reminders.length} kayıt`} />
       </div>
 
-      {/* Table */}
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="surface p-3 flex flex-wrap items-center gap-2">
         <Button variant={filter === "pending" ? "default" : "outline"} size="sm" onClick={() => setFilter("pending")} data-testid="filter-pending">Bekleyenler ({pendingCount})</Button>
         <Button variant={filter === "overdue" ? "default" : "outline"} size="sm" onClick={() => setFilter("overdue")} className={filter === "overdue" ? "" : "text-red-500 border-red-500/50"} data-testid="filter-overdue">Gecikmiş ({overdueCount})</Button>
         <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")} data-testid="filter-all">Tümü ({reminders.length})</Button>
@@ -386,29 +400,23 @@ export default function RemindersPage() {
       </div>
 
       {filteredReminders.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Bell className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Henüz hatırlatıcı yok</h3>
-            <p className="text-muted-foreground mt-1">Yeni hatırlatıcı ekleyerek başlayın</p>
-          </CardContent>
-        </Card>
+        <EmptyState icon={Bell} title="Hatırlatıcı yok" description="Yeni hatırlatıcı ekleyerek başlayın." />
       ) : (
         <div className="data-table">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Durum</TableHead>
-                <TableHead>Vade Tarihi</TableHead>
-                <TableHead>Firma</TableHead>
-                <TableHead>Başlık</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead className="text-right">Tutar</TableHead>
+                <SortableHead column="status" sort={remindersSort.sort} onSort={remindersSort.requestSort}>Durum</SortableHead>
+                <SortableHead column="due_date" sort={remindersSort.sort} onSort={remindersSort.requestSort}>Vade Tarihi</SortableHead>
+                <SortableHead column="company" sort={remindersSort.sort} onSort={remindersSort.requestSort}>Firma</SortableHead>
+                <SortableHead column="title" sort={remindersSort.sort} onSort={remindersSort.requestSort}>Başlık</SortableHead>
+                <SortableHead column="category" sort={remindersSort.sort} onSort={remindersSort.requestSort}>Kategori</SortableHead>
+                <SortableHead column="amount" sort={remindersSort.sort} onSort={remindersSort.requestSort} align="right">Tutar</SortableHead>
                 <TableHead className="w-[140px]">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredReminders.map((reminder) => {
+              {remindersSort.sortedData.map((reminder) => {
                 const dueDateStatus = getDueDateStatus(reminder.due_date, reminder.is_paid);
                 return (
                   <TableRow key={reminder.id} data-testid={`reminder-row-${reminder.id}`}>
@@ -420,8 +428,8 @@ export default function RemindersPage() {
                         {dueDateStatus.label}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatDate(reminder.due_date)}</TableCell>
-                    <TableCell>{getCompanyName(reminder.company_id)}</TableCell>
+                    <TableCell className="text-muted-foreground whitespace-nowrap">{formatDate(reminder.due_date)}</TableCell>
+                    <TableCell className="font-medium">{getCompanyName(reminder.company_id)}</TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{reminder.title}</p>
@@ -432,7 +440,7 @@ export default function RemindersPage() {
                       </div>
                     </TableCell>
                     <TableCell>{getCategoryLabel(reminder.category)}</TableCell>
-                    <TableCell className="text-right font-medium currency">
+                    <TableCell className="text-right font-semibold currency">
                       {formatCurrency(reminder.amount, reminder.currency)}
                     </TableCell>
                     <TableCell>

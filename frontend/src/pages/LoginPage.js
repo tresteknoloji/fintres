@@ -32,34 +32,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen login-bg flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative gradient blobs */}
+      <div aria-hidden className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-500/15 blur-3xl" />
+      </div>
+
       {/* Theme Toggle */}
       <Button
         variant="ghost"
         size="icon"
         onClick={toggleTheme}
-        className="absolute top-4 right-4"
+        className="absolute top-4 right-4 z-10"
         data-testid="login-theme-toggle"
       >
-        {theme === "dark" ? (
-          <Sun className="w-5 h-5" />
-        ) : (
-          <Moon className="w-5 h-5" />
-        )}
+        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </Button>
 
-      <div className="w-full max-w-md animate-fadeIn">
+      <div className="w-full max-w-md animate-fadeIn relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg animate-pulse-glow">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center mb-4 shadow-elevation-lg">
             <BarChart3 className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">FinTres Pro</h1>
-          <p className="text-muted-foreground mt-2">Çoklu Firma Finans Yönetimi</p>
+          <p className="text-sm text-muted-foreground mt-1">Çoklu Firma Finans Yönetimi</p>
         </div>
 
-        <Card className="border-border bg-card/80 backdrop-blur-xl">
-          <CardHeader className="text-center">
+        <Card className="border-border bg-card/90 backdrop-blur-xl shadow-elevation-lg">
+          <CardHeader>
             <CardTitle>Giriş Yap</CardTitle>
             <CardDescription>Hesabınıza giriş yapın</CardDescription>
           </CardHeader>
@@ -74,7 +76,7 @@ export default function LoginPage() {
                     id="login-email"
                     type="email"
                     placeholder="ornek@email.com"
-                    className="pl-10"
+                    className="pl-10 h-11"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     data-testid="login-email"
@@ -89,7 +91,7 @@ export default function LoginPage() {
                     id="login-password"
                     type="password"
                     placeholder="••••••••"
-                    className="pl-10"
+                    className="pl-10 h-11"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                     data-testid="login-password"
@@ -98,7 +100,7 @@ export default function LoginPage() {
               </div>
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full h-11 font-semibold"
                 disabled={loading}
                 data-testid="login-submit"
               >
@@ -108,7 +110,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-muted-foreground mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-6">
           Tres Teknoloji A.Ş. & Netlen İnternet Hizmetleri Ltd. Şti.
         </p>
       </div>

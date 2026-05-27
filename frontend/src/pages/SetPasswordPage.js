@@ -74,18 +74,23 @@ export default function SetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4" data-testid="set-password-page">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden" data-testid="set-password-page">
+      <div aria-hidden className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-500/15 blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10 animate-fadeIn">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mb-4 shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center mb-4 shadow-elevation-lg">
             <BarChart3 className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">FinTres Pro</h1>
         </div>
 
         {error ? (
-          <Card className="border-destructive">
+          <Card className="border-destructive shadow-elevation-lg">
             <CardContent className="pt-6 text-center">
               <p className="text-destructive font-medium">{error}</p>
               <Button className="mt-4" onClick={() => navigate("/login")} data-testid="go-login">
@@ -94,21 +99,21 @@ export default function SetPasswordPage() {
             </CardContent>
           </Card>
         ) : success ? (
-          <Card>
+          <Card className="shadow-elevation-lg">
             <CardContent className="pt-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
-                <CheckCircle className="w-8 h-8 text-green-500" />
+              <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto">
+                <CheckCircle className="w-8 h-8 text-emerald-500" />
               </div>
               <h2 className="text-xl font-semibold">Şifreniz Oluşturuldu</h2>
               <p className="text-muted-foreground">Artık giriş yapabilirsiniz.</p>
-              <Button className="w-full" onClick={() => navigate("/login")} data-testid="go-login-success">
+              <Button className="w-full h-11 font-semibold" onClick={() => navigate("/login")} data-testid="go-login-success">
                 Giriş Yap
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader className="text-center">
+          <Card className="shadow-elevation-lg bg-card/90 backdrop-blur-xl">
+            <CardHeader>
               <CardTitle>Şifre Oluştur</CardTitle>
               <CardDescription>
                 Merhaba <strong>{inviteInfo?.name}</strong>, hesabınız için bir şifre belirleyin
@@ -118,7 +123,7 @@ export default function SetPasswordPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label>E-posta</Label>
-                  <Input value={inviteInfo?.email || ""} disabled />
+                  <Input value={inviteInfo?.email || ""} disabled className="h-11" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Şifre * (min. 6 karakter)</Label>
@@ -130,7 +135,7 @@ export default function SetPasswordPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Şifrenizi girin"
-                      className="pl-10"
+                      className="pl-10 h-11"
                       data-testid="set-password-input"
                     />
                   </div>
@@ -145,12 +150,12 @@ export default function SetPasswordPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Şifrenizi tekrar girin"
-                      className="pl-10"
+                      className="pl-10 h-11"
                       data-testid="set-password-confirm"
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={saving} data-testid="set-password-submit">
+                <Button type="submit" className="w-full h-11 font-semibold" disabled={saving} data-testid="set-password-submit">
                   {saving ? "Oluşturuluyor..." : "Şifremi Oluştur"}
                 </Button>
               </form>

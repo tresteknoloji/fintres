@@ -21,11 +21,13 @@ import {
   TableRow
 } from "../components/ui/table";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Check } from "lucide-react";
 import { formatDate } from "../lib/utils";
+import { PageHeader } from "../components/PageHeader";
+import { EmptyState } from "../components/EmptyState";
 
 export default function CompaniesPage() {
-  const { companies, addCompany, updateCompany, deleteCompany, selectCompany } = useCompany();
+  const { companies, selectedCompany, addCompany, updateCompany, deleteCompany, selectCompany } = useCompany();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -92,22 +94,21 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-6" data-testid="companies-page">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Firmalar</h1>
-          <p className="text-muted-foreground mt-1">Firma yönetimi ve bilgileri</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button data-testid="add-company-btn">
-              <Plus className="w-4 h-4 mr-2" />
-              Yeni Firma
-            </Button>
-          </DialogTrigger>
+      <PageHeader
+        title="Firmalar"
+        subtitle="Firma yönetimi ve bilgileri"
+        icon={Building2}
+        actions={
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button data-testid="add-company-btn">
+                <Plus className="w-4 h-4 mr-2" />
+                Yeni Firma
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingCompany ? "Firma Düzenle" : "Yeni Firma Ekle"}</DialogTitle>
@@ -177,76 +178,84 @@ export default function CompaniesPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
 
       {/* Companies Grid */}
       {companies.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Henüz firma eklenmemiş</h3>
-            <p className="text-muted-foreground mt-1">Başlamak için yeni bir firma ekleyin</p>
-          </CardContent>
-        </Card>
+        <EmptyState icon={Building2} title="Henüz firma eklenmemiş" description="Başlamak için yeni bir firma ekleyin." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {companies.map((company) => (
-            <Card key={company.id} className="stat-card" data-testid={`company-card-${company.id}`}>
-              <CardHeader className="flex flex-row items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {companies.map((company) => {
+            const isActive = selectedCompany?.id === company.id;
+            return (
+              <Card
+                key={company.id}
+                className={`stat-card ${isActive ? "ring-1 ring-primary/40 border-primary/40" : ""}`}
+                data-testid={`company-card-${company.id}`}
+              >
+                <CardHeader className="flex flex-row items-start justify-between pb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="kpi-icon kpi-icon-primary shrink-0">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <CardTitle className="text-base font-semibold truncate">{company.name}</CardTitle>
+                      {company.tax_number && (
+                        <p className="text-xs text-muted-foreground mt-0.5">VN: {company.tax_number}</p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">{company.name}</CardTitle>
-                    {company.tax_number && (
-                      <p className="text-xs text-muted-foreground">VN: {company.tax_number}</p>
-                    )}
+                  {isActive && (
+                    <span className="company-badge text-[10px]">
+                      <Check className="w-3 h-3" />
+                      Seçili
+                    </span>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  {company.address && (
+                    <p className="text-sm text-muted-foreground">{company.address}</p>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {company.phone && <span>{company.phone}</span>}
+                    {company.email && <span>{company.email}</span>}
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {company.address && (
-                  <p className="text-sm text-muted-foreground">{company.address}</p>
-                )}
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {company.phone && <span>{company.phone}</span>}
-                  {company.email && <span>{company.email}</span>}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Oluşturulma: {formatDate(company.created_at)}
-                </p>
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => selectCompany(company)}
-                    data-testid={`select-company-${company.id}`}
-                  >
-                    Seç
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(company)}
-                    data-testid={`edit-company-${company.id}`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(company)}
-                    data-testid={`delete-company-${company.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="text-xs text-muted-foreground">
+                    Oluşturulma: {formatDate(company.created_at)}
+                  </p>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant={isActive ? "secondary" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => selectCompany(isActive ? null : company)}
+                      data-testid={`select-company-${company.id}`}
+                    >
+                      {isActive ? "Seçili" : "Seç"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(company)}
+                      data-testid={`edit-company-${company.id}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(company)}
+                      data-testid={`delete-company-${company.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { Users, Trash2, Shield, Mail, Settings as SettingsIcon, Plus, User, Send, CheckCircle, Clock, Bell, Calendar, Phone, Building2 } from "lucide-react";
 import { Checkbox } from "../components/ui/checkbox";
 import { formatDate } from "../lib/utils";
+import { PageHeader } from "../components/PageHeader";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -265,13 +266,13 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6" data-testid="settings-page">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Ayarlar</h1>
-        <p className="text-muted-foreground mt-1">Hesap ve sistem ayarları</p>
-      </div>
+      <PageHeader
+        title="Ayarlar"
+        subtitle="Hesap ve sistem ayarları"
+        icon={SettingsIcon}
+      />
 
-      <Tabs defaultValue="profile" className="space-y-6">
+      <Tabs defaultValue="profile" className="space-y-4">
         <TabsList>
           <TabsTrigger value="profile" data-testid="tab-profile">Profil</TabsTrigger>
           {user?.role === "admin" && (
