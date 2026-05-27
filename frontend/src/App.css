@@ -1,6 +1,8 @@
 /* App specific styles */
+
+/* ---------- Sidebar ---------- */
 .sidebar-link {
-    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all duration-200;
+    @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-150;
 }
 
 .sidebar-link:hover {
@@ -11,31 +13,109 @@
     @apply bg-primary/10 text-primary;
 }
 
+.sidebar-link.active::before {
+    content: "";
+    @apply absolute left-0 top-1.5 bottom-1.5 w-1 rounded-full bg-primary;
+}
+
+/* ---------- KPI / Stat cards ---------- */
 .stat-card {
-    @apply bg-card border border-border rounded-xl p-6 transition-all duration-300;
+    @apply relative bg-card border border-border rounded-xl p-6 transition-all duration-200;
+    box-shadow: var(--shadow-card);
 }
 
 .stat-card:hover {
-    @apply border-primary/50 scale-[1.02];
+    @apply border-primary/30;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
+.kpi-icon {
+    @apply flex items-center justify-center w-10 h-10 rounded-lg;
+}
+
+.kpi-icon-success { @apply bg-emerald-500/10 text-emerald-500; }
+.kpi-icon-danger { @apply bg-red-500/10 text-red-500; }
+.kpi-icon-primary { @apply bg-primary/10 text-primary; }
+.kpi-icon-warning { @apply bg-amber-500/10 text-amber-500; }
+.kpi-icon-info { @apply bg-sky-500/10 text-sky-500; }
+.kpi-icon-muted { @apply bg-muted text-muted-foreground; }
+
+/* ---------- Page header ---------- */
+.page-title {
+    @apply text-2xl md:text-3xl font-bold tracking-tight;
+}
+
+.page-subtitle {
+    @apply text-sm text-muted-foreground mt-1;
+}
+
+/* ---------- Data tables ---------- */
 .data-table {
-    @apply w-full overflow-auto rounded-xl border border-border bg-card/50 backdrop-blur-sm;
+    @apply w-full overflow-auto rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-card);
+}
+
+.data-table table {
+    @apply w-full;
+}
+
+.data-table thead {
+    @apply bg-muted/40;
 }
 
 .data-table th {
-    @apply bg-muted/50 text-xs uppercase tracking-wider font-semibold text-muted-foreground p-4 text-left;
+    @apply text-xs uppercase tracking-wider font-semibold text-muted-foreground p-4 text-left whitespace-nowrap;
 }
 
 .data-table td {
-    @apply p-4 align-middle text-sm font-medium border-b border-border/50;
+    @apply p-4 align-middle text-sm border-b border-border/60;
 }
 
-.data-table tr:hover {
+.data-table tbody tr {
+    @apply transition-colors duration-100;
+}
+
+.data-table tbody tr:hover {
     @apply bg-muted/30;
 }
 
-/* Form styles */
+.data-table tbody tr:last-child td {
+    @apply border-b-0;
+}
+
+/* Sortable column header */
+.sortable-th {
+    @apply cursor-pointer select-none group transition-colors;
+}
+
+.sortable-th:hover {
+    @apply text-foreground;
+}
+
+.sortable-th-content {
+    @apply inline-flex items-center gap-1.5;
+}
+
+.sortable-th-icon {
+    @apply w-3.5 h-3.5 transition-opacity;
+}
+
+.sortable-th-icon-inactive {
+    @apply opacity-30 group-hover:opacity-60;
+}
+
+/* ---------- Period selector chips ---------- */
+.period-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-150 cursor-pointer;
+    @apply bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40;
+}
+
+.period-chip.active {
+    @apply bg-primary text-primary-foreground border-primary;
+}
+
+/* ---------- Form styles ---------- */
 .form-group {
     @apply space-y-2;
 }
@@ -44,30 +124,64 @@
     @apply text-sm font-medium text-muted-foreground;
 }
 
-/* Badge variants */
+/* ---------- Badge variants ---------- */
 .badge-success {
-    @apply bg-green-500/20 text-green-500 border-green-500/30;
+    @apply bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30;
 }
 
 .badge-warning {
-    @apply bg-yellow-500/20 text-yellow-500 border-yellow-500/30;
+    @apply bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30;
 }
 
 .badge-danger {
-    @apply bg-red-500/20 text-red-500 border-red-500/30;
+    @apply bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30;
 }
 
-/* Chart container */
+.badge-info {
+    @apply bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30;
+}
+
+.badge-muted {
+    @apply bg-muted text-muted-foreground border-border;
+}
+
+/* ---------- Chart container ---------- */
 .chart-container {
-    @apply w-full h-[300px] md:h-[400px];
+    @apply w-full h-[300px] md:h-[360px];
 }
 
-/* Login page */
+/* ---------- Login page ---------- */
 .login-bg {
     @apply bg-background;
 }
 
-/* Company switcher */
+/* ---------- Company switcher ---------- */
 .company-badge {
     @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20;
 }
+
+/* ---------- Section / surface helpers ---------- */
+.surface {
+    @apply bg-card border border-border rounded-xl;
+    box-shadow: var(--shadow-card);
+}
+
+.section-heading {
+    @apply text-lg font-semibold tracking-tight;
+}
+
+.subtle-divider {
+    @apply h-px bg-border/70;
+}
+
+/* ---------- Tabs polish ---------- */
+[role="tablist"] {
+    @apply bg-muted/60;
+}
+
+/* ---------- Tag-like value text ---------- */
+.text-tone-success { @apply text-emerald-600 dark:text-emerald-400; }
+.text-tone-danger { @apply text-red-600 dark:text-red-400; }
+.text-tone-warning { @apply text-amber-600 dark:text-amber-400; }
+.text-tone-info { @apply text-sky-600 dark:text-sky-400; }
+.text-tone-primary { @apply text-primary; }
